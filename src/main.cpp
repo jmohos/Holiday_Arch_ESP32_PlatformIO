@@ -3,45 +3,18 @@
 #include "IoSync.h"
 #include "Console.h"
 #include "CommandExec.h"
+#include "Faults.h"
+#include "Logging.h"
+#include "Show.h"
 
-extern "C" {
-  #include "esp_log.h"
-  #include "freertos/FreeRTOS.h"
-  #include "freertos/task.h"
-}
-
-// ===== Tasks =====
-TaskHandle_t netTaskHandle = nullptr; // Core 0 task
-TaskHandle_t showTaskHandle = nullptr; // Core 1 task
-TaskHandle_t consoleTaskHandle = nullptr;
-
-// ===== Task Log Names =====
 static const char* TAG_BOOT = "BOOT";
-static const char* TAG_NET = "NET";
-static const char* TAG_SHOW = "SHOW";
-static const char* TAG_CONSOLE = "CON";
-static const char* TAG_BACKG = "BKG";
 
-// A small helper to show which core we're on
-static inline int core() { return xPortGetCoreID(); }
-
-void show_task(void *)
-{
-  uint16_t counter = 0;
-
-  for (;;)
-  {
-    ESP_LOGD(TAG_SHOW, "[core %d] doing periodic work...", core());
-    //Serial.println("Show tick...");
-    vTaskDelay(pdMS_TO_TICKS(1000));
-  }
-}
-
-
-
+// Bootup initialization.
 void setup() {
+  BaseType_t ok;
+
   Serial.begin(115200);
-  delay(500);  // Give serial interface time to startup before using.
+  delay(2000);  // Give serial interface time to startup before using.
 
   // One-time init: install locked vprintf + create I/O mutex so logs & prompts serialize
   io_sync_init();
@@ -53,32 +26,49 @@ void setup() {
 
   ESP_LOGI(TAG_BOOT, "System startup, about to start tasks...");
   
-  // Start the console reader (core 1) and the executor (core 1)
-  if (!console_start(8, /*prio*/2, /*core*/1)) {
-    ESP_LOGE(TAG_BOOT, "console_start failed");
-  }
-  if (!command_exec_start(/*core*/1, /*prio*/2, /*stack*/4096)) {
-    ESP_LOGE(TAG_BOOT, "command_exec_start failed");
+  // Start the console interface task.
+  if (!console_start(
+    8, /* Queue Length */
+    2, /* Priority */
+    4096, /* Stack Bytes */
+    1 /* Core */ ))
+  {
+    FAULT_SET(FAULT_CONSOLE_TASK_FAULT);
+    ESP_LOGE(TAG_BOOT, "Failed to start console task!");
+  } else {
+    ESP_LOGI(TAG_BOOT, "Console task started.");
   }
 
-  // Core 1: Main app tasks
-  xTaskCreatePinnedToCore(
-      show_task,
-      "show",
-      8192,
-      nullptr,
-      configMAX_PRIORITIES - 1 /*high prio*/, 
-      &showTaskHandle, 
-      1 /*core 1*/);
-  
-  ESP_LOGI(TAG_BOOT, "All tasks started, running system.");
+  // Start the remote command executor task.
+  if (!command_exec_start(
+    2, /* Priority */
+    4096, /* Stack Bytes */
+    1 /* Core */ ))
+  {
+    FAULT_SET(FAULT_CMD_EXEC_TASK_FAULT);
+    ESP_LOGE(TAG_BOOT, "Failed to start command executor task!");
+  } else {
+    ESP_LOGI(TAG_BOOT, "Command executor started.");
+  }
 
+    // Start the remote command executor task.
+  if (!show_start(
+    configMAX_PRIORITIES - 1, /* Priority */
+    8192, /* Stack Bytes */
+    1 /* Core */ ))
+  {
+    FAULT_SET(FAULT_SHOW_TASK_FAULT);
+    ESP_LOGE(TAG_BOOT, "Failed to start show task!");
+  } else {
+    ESP_LOGI(TAG_BOOT, "Show task started.");
+  }
 }
 
+// Background task
 void loop() {
   // Keep Arduino loop empty so tasks do the work.
   vTaskDelay(pdMS_TO_TICKS(1000));
 
-  ESP_LOGD(TAG_BACKG, "[core %d] Background...", core());
+  ESP_LOGD(TAG_BACKG, "Background...");
 }
 

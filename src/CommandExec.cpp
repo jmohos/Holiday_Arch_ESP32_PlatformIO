@@ -1,12 +1,9 @@
 #include "CommandExec.h"
 #include "Console.h"
 #include "ConsoleUtils.h"
+#include "Faults.h"
 #include "IoSync.h"
-
-extern "C" {
-  #include "esp_log.h"
-  #include "freertos/queue.h"
-}
+#include "Logging.h"
 
 
 static void CommandExecTask(void*) {
@@ -14,7 +11,12 @@ static void CommandExecTask(void*) {
   CommandMsg msg;
   while (true) {
     if (xQueueReceive(q, &msg, portMAX_DELAY) == pdTRUE) {
-      if (!strcasecmp(msg.cmd, "trigger")) {
+      if (!strcasecmp(msg.cmd, "help")) {
+        io_printf("help:      This list of help commands\n");
+        io_printf("faults:    Report list of active faults\n");
+        io_printf("trigger x: Trigger animaion sequence x\n");
+
+      } else if (!strcasecmp(msg.cmd, "trigger")) {
         const char* kind = arg_as_str(msg, 0);
         int index;
         if (kind && arg_as_int(msg, 1, index)) {
@@ -23,6 +25,10 @@ static void CommandExecTask(void*) {
         } else {
           io_printf("usage: trigger <kind> <index>\n");
         }
+
+      } else if (!strcasecmp(msg.cmd, "faults")) {
+        io_printf("Active system faults:\n");
+        print_faults();
 
       } else if (!strcasecmp(msg.cmd, "mode")) {
         const char* mode = arg_as_str(msg, 0);
@@ -45,11 +51,14 @@ static void CommandExecTask(void*) {
       } else {
         io_printf("unknown command '%s'\n", msg.cmd);
       }
+
+      // Draw prompt on newline
+      io_printf("\n> ");
     }
   }
 }
 
-bool command_exec_start(BaseType_t core, UBaseType_t priority, uint32_t stack_bytes) {
+bool command_exec_start(UBaseType_t priority, uint32_t stack_bytes, BaseType_t core) {
   TaskHandle_t h = nullptr;
   BaseType_t ok = xTaskCreatePinnedToCore(
       CommandExecTask, "CommandExec", stack_bytes, nullptr, priority, &h, core);

@@ -1,10 +1,7 @@
 #include "Console.h"
 #include "IoSync.h"
+#include "Logging.h"
 
-extern "C" {
-  #include "esp_log.h"
-  #include "freertos/task.h"
-}
 
 static const char* TAG_CON = "console";
 static QueueHandle_t g_cmdq = nullptr;
@@ -46,18 +43,6 @@ static void tokenize_line(const String& line, CommandMsg& out)
   if (tok.length()) { push_tok(tok, first); }
 }
 
-void console_print_menu() {
-  io_printf(
-    "\nCommands (examples):\n"
-    "  help\n"
-    "  trigger audio 5\n"
-    "  trigger light 2\n"
-    "  trigger show 1\n"
-    "  mode off\n"
-    "  log dbg\n"
-  );
-}
-
 static void ConsoleReaderTask(void* /*pv*/)
 {
   String line;
@@ -79,7 +64,6 @@ static void ConsoleReaderTask(void* /*pv*/)
           }
         }
         line = "";
-        io_printf("> ");
       } else {
         // simple backspace handling
         if ((c == 0x08 || c == 0x7F)) {
@@ -93,7 +77,7 @@ static void ConsoleReaderTask(void* /*pv*/)
   }
 }
 
-QueueHandle_t console_start(size_t queue_len, UBaseType_t task_priority, BaseType_t core)
+QueueHandle_t console_start(size_t queue_len, UBaseType_t task_priority, uint32_t stack_bytes, BaseType_t core)
 {
   if (!g_cmdq) {
     g_cmdq = xQueueCreate(queue_len, sizeof(CommandMsg));
@@ -103,7 +87,7 @@ QueueHandle_t console_start(size_t queue_len, UBaseType_t task_priority, BaseTyp
     }
   }
   BaseType_t ok = xTaskCreatePinnedToCore(
-      ConsoleReaderTask, "ConsoleReader", 4096, nullptr, task_priority, nullptr, core);
+      ConsoleReaderTask, "ConsoleReader", stack_bytes, nullptr, task_priority, nullptr, core);
   if (ok != pdPASS) {
     ESP_LOGE(TAG_CON, "Failed to start ConsoleReader task");
     vQueueDelete(g_cmdq);

@@ -1,11 +1,8 @@
 #pragma once
 
 #include <Arduino.h>
+#include "Logging.h"
 
-extern "C" {
-  #include "freertos/FreeRTOS.h"
-  #include "freertos/queue.h"
-}
 
 // ==== Tunables (raise if you need more) ====
 #ifndef CON_MAX_ARGS
@@ -27,12 +24,12 @@ struct CommandMsg {
 
 // Start the console reader (prompts via io_printf). It pushes CommandMsg to a queue.
 // Returns the queue handle (read in your executor task) or nullptr on error.
-QueueHandle_t console_start(size_t queue_len = 16,
-                            UBaseType_t task_priority = 2,
-                            BaseType_t core = 0);
+QueueHandle_t console_start(
+  size_t queue_len = 16,
+  UBaseType_t task_priority = 2,
+  uint32_t stack_bytes = 4096,
+  BaseType_t core = 0 );
 
 // Access the queue after start.
 QueueHandle_t console_get_queue();
 
-// Optional help text
-void console_print_menu();

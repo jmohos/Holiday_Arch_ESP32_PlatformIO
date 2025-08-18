@@ -6,12 +6,8 @@
 // conflict.
 // Use io_print() in place of Serial.print().
 //
-extern "C" {
-  #include "freertos/FreeRTOS.h"
-  #include "freertos/semphr.h"
-  #include "esp_log.h"
-}
 #include <Arduino.h>
+#include "Logging.h"
 #include <stdarg.h>
 
 // Initialize the shared I/O lock and hook esp_log's vprintf to a locked version.
