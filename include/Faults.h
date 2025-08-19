@@ -6,7 +6,8 @@ typedef enum {
   FAULT_CONSOLE_TASK_FAULT = 0,
   FAULT_CMD_EXEC_TASK_FAULT = 1,
   FAULT_SHOW_TASK_FAULT = 2,
-  FAULT_MAX_INDEX = 3
+  FAULT_CONFIG_RESTORE_FAULT = 3,
+  FAULT_MAX_INDEX = 4
 } SYSTEM_FAULT_T;
 
 // Forward reference to master system fault bits in master .ini file.

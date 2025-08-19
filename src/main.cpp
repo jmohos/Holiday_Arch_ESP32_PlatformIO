@@ -5,9 +5,14 @@
 #include "CommandExec.h"
 #include "Faults.h"
 #include "Logging.h"
+#include "SettingsStore.h"
 #include "Show.h"
 
 static const char* TAG_BOOT = "BOOT";
+
+// Persistent storage handle
+Persist::SettingsStore gCfg;
+
 
 // Bootup initialization.
 void setup() {
@@ -26,6 +31,15 @@ void setup() {
 
   ESP_LOGI(TAG_BOOT, "System startup, about to start tasks...");
   
+  // Restore the persistent memory parameters
+  if (!gCfg.begin()) {
+    // Failed to restore settings
+    ESP_LOGE(TAG_BOOT, "Failed to restore config!");
+    FAULT_SET(FAULT_CONFIG_RESTORE_FAULT);
+  } else {
+    ESP_LOGI(TAG_BOOT, "Config restored.");
+  }
+
   // Start the console interface task.
   if (!console_start(
     8, /* Queue Length */
@@ -43,7 +57,8 @@ void setup() {
   if (!command_exec_start(
     2, /* Priority */
     4096, /* Stack Bytes */
-    1 /* Core */ ))
+    1, /* Core */
+    &gCfg /* Configuration */ ))
   {
     FAULT_SET(FAULT_CMD_EXEC_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start command executor task!");
