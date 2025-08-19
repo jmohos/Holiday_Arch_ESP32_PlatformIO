@@ -4,9 +4,12 @@
 #include "Faults.h"
 #include "IoSync.h"
 #include "Logging.h"
+#include "NetService.h"
 #include "SettingsStore.h"
 
 Persist::SettingsStore* _cfg = nullptr;
+NetService *_net = nullptr;
+
 
 static void CommandExecTask(void*) {
   QueueHandle_t q = console_get_queue();
@@ -23,6 +26,7 @@ static void CommandExecTask(void*) {
         io_printf(" cfg load       -Load config from memory.\n");
         io_printf(" cfg save       -Save config to memory.\n");
         io_printf(" faults         -Report list of active faults.\n");
+        io_printf(" net show       -Show network status.\n");        
         io_printf(" restart        -Reboot the CPU.\n");
         io_printf(" trigger x      -Trigger animaion sequence. x\n");
 
@@ -48,6 +52,7 @@ static void CommandExecTask(void*) {
               io_printf("Invalid cfg set parameters!");
               continue;
             }
+            // cfg set id
             if (!strcasecmp(arg2, "id")) {
               int id = 0;
               if (arg_as_int(msg, 2, id)) {
@@ -61,11 +66,13 @@ static void CommandExecTask(void*) {
                 io_printf("Invalid id input!");
               }
             }
+            // cfg set ssid
             else if (!strcasecmp(arg2, "ssid")) {
               const char* ssid = arg_as_str(msg, 2);
               io_printf("Setting cfg WiFi SSID to: %s\n", ssid);
               _cfg->setSsid(ssid);
             }
+            // cfg set pass
             else if (!strcasecmp(arg2, "pass")) {
               const char* pass = arg_as_str(msg, 2);
               io_printf("Setting cfg WiFI password to: %s\n", pass);
@@ -75,6 +82,7 @@ static void CommandExecTask(void*) {
               io_printf("Unsupported parameter: %s\n", arg2);
             }
           }
+          // cfg load
           else if (!strcasecmp(arg1, "load")) {
             if (_cfg->load()) {
               io_printf("Successfully load config parameters.");
@@ -82,6 +90,7 @@ static void CommandExecTask(void*) {
               io_printf("Failed to load config parameters!");
             }
           }
+          // cfg save
           else if (!strcasecmp(arg1, "save")) {
             if (_cfg->save()) {
               io_printf("Successfully saved config parameters.");
@@ -89,6 +98,7 @@ static void CommandExecTask(void*) {
               io_printf("Failed to save config parameters!");
             }
           }
+          // cfg defaults
           else if (!strcasecmp(arg1, "defaults")) {
             _cfg->setDefaults();
             io_printf("Default config parameters loaded, not saved.");
@@ -97,7 +107,36 @@ static void CommandExecTask(void*) {
             io_printf("Unsupported command: %s\n", arg1);
           }
         }
+      } else if (!strcasecmp(msg.cmd, "net")) {
+        if (!_net ) {
+          io_printf("Network manager unavailable!");
+          continue;
+        }
+        const char* arg1 = arg_as_str(msg, 0);
+        if (arg1) {
+          if (!strcasecmp(arg1, "show")) {
+            // "net show"
+            io_printf("Network Status:\n");
+            io_printf("  Connected: %s\n", _net->isConnected() ? "CONNECTED" : "DISCONNECTED");
+            io_printf("  SSID: >%s<\n", _net->ssid().c_str());
+            io_printf("  IP: %s\n", _net->localIP().c_str());
+            io_printf("  GW: %s\n", _net->gatewayIP().c_str());
+            io_printf("  Subnet: %s\n", _net->subnetMask().c_str());
+            io_printf("  BSSID: %s\n", _net->bssid().c_str());
+            io_printf("  Chan: %u\n", _net->channel());
+            io_printf("  RSSI: %d dBm\n", _net->rssi());
+            io_printf("  McastIP: %s\n", _net->mcastIP().c_str());
+            io_printf("  McastPort: %u\n", _net->mcastPort());
+            io_printf("  Mcast Listening: %s\n", _net->isListening() ? "LISTENING" : "IDLE");
+            io_printf(" -------------\n");
 
+          }
+          else {
+            io_printf("Unsupported command: %s\n", arg1);
+          }
+        } else {
+
+        }
       } else if (!strcasecmp(msg.cmd, "trigger")) {
         const char* kind = arg_as_str(msg, 0);
         int index;
@@ -146,9 +185,10 @@ static void CommandExecTask(void*) {
   }
 }
 
-bool command_exec_start(UBaseType_t priority, uint32_t stack_bytes, BaseType_t core, Persist::SettingsStore* cfg) {
+bool command_exec_start(UBaseType_t priority, uint32_t stack_bytes, BaseType_t core, Persist::SettingsStore* cfg, NetService *net) {
   TaskHandle_t h = nullptr;
   _cfg = cfg;
+  _net = net;
   BaseType_t ok = xTaskCreatePinnedToCore(
       CommandExecTask, "CommandExec", stack_bytes, nullptr, priority, &h, core);
   return ok == pdPASS;

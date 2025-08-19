@@ -47,7 +47,7 @@ static void ConsoleReaderTask(void* /*pv*/)
 {
   String line;
   ESP_LOGI(TAG_CON, "Console reader on core %d. Type 'help' + Enter.", core_id());
-  io_printf("> ");
+  //io_printf("> ");
 
   while (true) {
     while (Serial.available()) {
