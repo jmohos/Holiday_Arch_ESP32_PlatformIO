@@ -8,7 +8,10 @@ typedef enum {
   FAULT_SHOW_TASK_FAULT = 2,
   FAULT_CONFIG_RESTORE_FAULT = 3,
   FAULT_NETWORK_TASK_FAULT = 4,
-  FAULT_MAX_INDEX = 5
+  FAULT_AUDIO_TASK_FAULT = 5,
+  FAULT_LIGHT_TASK_FAULT = 6,
+  FAULT_MOTOR_TASK_FAULT = 7,
+  FAULT_MAX_INDEX = 8
 } SYSTEM_FAULT_T;
 
 // Forward reference to master system fault bits in master .ini file.

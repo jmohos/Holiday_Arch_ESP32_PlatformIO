@@ -1,4 +1,5 @@
 #include "CommandExec.h"
+#include "CommandQueues.h"
 #include "Console.h"
 #include "ConsoleUtils.h"
 #include "Faults.h"
@@ -28,7 +29,17 @@ static void CommandExecTask(void*) {
         io_printf(" faults         -Report list of active faults.\n");
         io_printf(" net show       -Show network status.\n");        
         io_printf(" restart        -Reboot the CPU.\n");
-        io_printf(" trigger x      -Trigger animaion sequence. x\n");
+        io_printf(" show start     -Enable show mode.\n");
+        io_printf(" show stop      -Disable show mode.\n");
+        io_printf(" show trigger x -Trigger show anim x.\n");
+        io_printf(" audio play x   -Play audio file x.\n");
+        io_printf(" audio stop     -Stop playing audio.\n");
+        io_printf(" audio volume x -Set audio volume to x.\n");
+        io_printf(" light play x   -Play audio file x.\n");
+        io_printf(" light stop     -Stop playing audio.\n");
+        io_printf(" motor play x   -Play audio file x.\n");
+        io_printf(" motor stop     -Stop playing audio.\n");
+        io_printf(" motor home     -Home the motor.\n");
 
       } else if (!strcasecmp(msg.cmd, "cfg")) {
         if (!_cfg) {
@@ -137,14 +148,108 @@ static void CommandExecTask(void*) {
         } else {
 
         }
-      } else if (!strcasecmp(msg.cmd, "trigger")) {
-        const char* kind = arg_as_str(msg, 0);
-        int index;
-        if (kind && arg_as_int(msg, 1, index)) {
-          io_printf("trigger: %s %d\n", kind, index);
-          // TODO: trigger handler here
-        } else {
-          io_printf("usage: trigger <kind> <index>\n");
+      } else if (!strcasecmp(msg.cmd, "show")) {
+        const char* arg1 = arg_as_str(msg, 0);
+        if (arg1 && !strcasecmp(arg1, "start")){
+          // show start
+          io_printf("Queued up show start\n");
+          SendShow( ShowInputMsg{ ShowCmd::Start } );
+        }
+        else if (arg1  && !strcasecmp(arg1, "stop")){
+          // show stop
+          io_printf("Queued up show stop\n");
+          SendShow( ShowInputMsg{ ShowCmd::Stop } );
+        }
+        else if (arg1  && !strcasecmp(arg1, "trigger")){
+          // show trigger x
+          int index;
+          if (arg_as_int(msg, 1, index)) {
+            io_printf("Queued up show trigger index: %d\n", index);
+            SendShow( ShowInputMsg{ ShowCmd::Trigger, static_cast<unsigned char>(index) } );
+          } else {
+            io_printf("Errr, Missing valid show index!");  
+          }
+        }
+        else {
+          io_printf("usage: show start/stop/trigger <index>\n");
+        }
+
+      } else if (!strcasecmp(msg.cmd, "audio")) {
+        const char* arg1 = arg_as_str(msg, 0);
+        if (arg1 && !strcasecmp(arg1, "play")){
+          // audio play x
+          int index;
+          if (arg_as_int(msg, 1, index)) {
+            io_printf("Queued up audio play %d.\n", index);
+            SendAudio( AudioCmdMsg{ AudioCmd::Play, static_cast<unsigned char>(index) } );
+          } else {
+            io_printf("Error, missing valid audio file number!");  
+          }
+        }
+        else if (arg1  && !strcasecmp(arg1, "stop")){
+          // audio stop
+          io_printf("Queued up audio stop\n");
+          SendAudio( AudioCmdMsg{ AudioCmd::Stop } );
+        }
+        else if (arg1  && !strcasecmp(arg1, "volume")){
+          // audio volume x
+          int volume;
+          if (arg_as_int(msg, 1, volume)) {
+            io_printf("Queued up audio volume %d\n", volume);
+            SendAudio( AudioCmdMsg{ AudioCmd::Volume, static_cast<unsigned char>(volume) } );
+          } else {
+            io_printf("Error, invalid volume!");  
+          }
+        }
+        else {
+          io_printf("usage: audio play/stop/volume <val>\n");
+        }
+
+      } else if (!strcasecmp(msg.cmd, "light")) {
+        const char* arg1 = arg_as_str(msg, 0);
+        if (arg1 && !strcasecmp(arg1, "play")){
+          // light play x
+          int index;
+          if (arg_as_int(msg, 1, index)) {
+            io_printf("Queued up light play %d.\n", index);
+            SendLight( LightCmdMsg{ LightCmd::Play, static_cast<unsigned char>(index) } );
+          } else {
+            io_printf("Error, missing valid light index number!");  
+          }
+        }
+        else if (arg1  && !strcasecmp(arg1, "stop")){
+          // light stop
+          io_printf("Queued up light stop\n");
+          SendLight( LightCmdMsg{ LightCmd::Stop } );
+        }
+        else {
+          io_printf("usage: light play/stop <val>\n");
+        }
+
+      } else if (!strcasecmp(msg.cmd, "motor")) {
+        const char* arg1 = arg_as_str(msg, 0);
+        if (arg1 && !strcasecmp(arg1, "play")){
+          // motor play x
+          int index;
+          if (arg_as_int(msg, 1, index)) {
+            io_printf("Queued up motor play %d.\n", index);
+            SendMotor( MotorCmdMsg{ MotorCmd::Play, static_cast<unsigned char>(index) } );
+          } else {
+            io_printf("Error, missing valid motor index number!");  
+          }
+        }
+        else if (arg1  && !strcasecmp(arg1, "stop")){
+          // motor stop
+          io_printf("Queued up motor stop\n");
+          SendMotor( MotorCmdMsg{MotorCmd::Stop } );
+        }
+        else if (arg1  && !strcasecmp(arg1, "home")){
+          // motor home
+          io_printf("Queued up motor home\n");
+          SendMotor( MotorCmdMsg{MotorCmd::Home } );
+        }
+        else {
+          io_printf("usage: motor play/stop/home <val>\n");
         }
 
       } else if (!strcasecmp(msg.cmd, "faults")) {

@@ -168,7 +168,7 @@ private:
       const uint8_t *bssid = WiFi.BSSID(idx);
       int ch = WiFi.channel(idx);
       int rssi = WiFi.RSSI(idx);
-      ESP_LOGI("NET", "found SSID on ch=%d RSSI=%d, joining via BSSID=%02X:%02X:%02X:%02X:%02X:%02X",
+      ESP_LOGI("NET", "found SSID on ch=%d RSSI=%d, joining via BSSID=%02X:%02X:%02X:%02X:%02X:%02X\n",
            ch, rssi, bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
      
       WiFi.begin(ssid_.c_str(), pass_.c_str(), ch, bssid, true /*connect*/);

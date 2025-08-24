@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "CommandQueues.h"
 #include "Show.h"
 
 #include "IoSync.h"
@@ -7,12 +8,18 @@
 
 static void ShowTask(void*) {
   uint16_t counter = 0;
+  ShowInputMsg in_msg{};
 
   for (;;)
   {
-    ESP_LOGD(TAG_SHOW, "[core %d] doing periodic work...", core());
+
+    if (xQueueReceive(queueBus.showInput, &in_msg, 0) == pdPASS) {
+      io_printf("Received incoming command: %d, param: %d\n", in_msg.cmd, in_msg.param);
+    }
+
+    //ESP_LOGD(TAG_SHOW, "[core %d] doing periodic work...", core());
     //Serial.println("Show tick...");
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 
