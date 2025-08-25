@@ -15,6 +15,27 @@ static void ShowTask(void*) {
 
     if (xQueueReceive(queueBus.showInputQueueHandle, &in_msg, 0) == pdPASS) {
       io_printf("Received incoming command: %d, param: %d\n", in_msg.cmd, in_msg.param);
+
+      switch(in_msg.cmd) {
+        case ShowInputQueueCmd::TriggerLocal:
+          SendLightQueue( LightCmdQueueMsg{ LightQueueCmd::Play, 1 } );
+        break;
+
+        case ShowInputQueueCmd::TriggerPeer:
+          SendLightQueue( LightCmdQueueMsg{ LightQueueCmd::Play, 2 } );
+        break;
+
+        case ShowInputQueueCmd::Start:
+        break;
+
+        case ShowInputQueueCmd::Stop:
+          SendLightQueue( LightCmdQueueMsg{ LightQueueCmd::Stop } );
+        break;
+
+        default:
+        // Unsupported command!
+        break;
+      }
     }
 
     //ESP_LOGD(TAG_SHOW, "[core %d] doing periodic work...", core());
