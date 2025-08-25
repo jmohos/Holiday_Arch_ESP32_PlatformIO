@@ -8,12 +8,12 @@
 
 static void ShowTask(void*) {
   uint16_t counter = 0;
-  ShowInputMsg in_msg{};
+  ShowInputQueueMsg in_msg{};
 
   for (;;)
   {
 
-    if (xQueueReceive(queueBus.showInput, &in_msg, 0) == pdPASS) {
+    if (xQueueReceive(queueBus.showInputQueueHandle, &in_msg, 0) == pdPASS) {
       io_printf("Received incoming command: %d, param: %d\n", in_msg.cmd, in_msg.param);
     }
 

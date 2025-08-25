@@ -18,28 +18,29 @@ static void CommandExecTask(void*) {
   while (true) {
     if (xQueueReceive(q, &msg, portMAX_DELAY) == pdTRUE) {
       if (!strcasecmp(msg.cmd, "help")) {
-        io_printf(" help           -This list of help commands.\n");
-        io_printf(" cfg show       -Show all config items.\n");
-        io_printf(" cfg set id x   -Set config device id. (1-254)\n");
-        io_printf(" cfg set ssid x -Set WiFi SSID to x.\n");
-        io_printf(" cfg set pass x -Set WiFi password to x.\n");
-        io_printf(" cfg defaults   -Load config defaults.\n");
-        io_printf(" cfg load       -Load config from memory.\n");
-        io_printf(" cfg save       -Save config to memory.\n");
-        io_printf(" faults         -Report list of active faults.\n");
-        io_printf(" net show       -Show network status.\n");        
-        io_printf(" restart        -Reboot the CPU.\n");
-        io_printf(" show start     -Enable show mode.\n");
-        io_printf(" show stop      -Disable show mode.\n");
-        io_printf(" show trigger x -Trigger show anim x.\n");
-        io_printf(" audio play x   -Play audio file x.\n");
-        io_printf(" audio stop     -Stop playing audio.\n");
-        io_printf(" audio volume x -Set audio volume to x.\n");
-        io_printf(" light play x   -Play audio file x.\n");
-        io_printf(" light stop     -Stop playing audio.\n");
-        io_printf(" motor play x   -Play audio file x.\n");
-        io_printf(" motor stop     -Stop playing audio.\n");
-        io_printf(" motor home     -Home the motor.\n");
+        io_printf(" help           - This list of help commands.\n");
+        io_printf(" cfg show       - Show all config items.\n");
+        io_printf(" cfg set id x   - Set config device id. (1-254)\n");
+        io_printf(" cfg set ssid x - Set WiFi SSID to x.\n");
+        io_printf(" cfg set pass x - Set WiFi password to x.\n");
+        io_printf(" cfg defaults   - Load config defaults.\n");
+        io_printf(" cfg load       - Load config from memory.\n");
+        io_printf(" cfg save       - Save config to memory.\n");
+        io_printf(" faults         - Report list of active faults.\n");
+        io_printf(" net show       - Show network status.\n");        
+        io_printf(" restart        - Reboot the CPU.\n");
+        io_printf(" show start     - Enable show mode.\n");
+        io_printf(" show stop      - Disable show mode.\n");
+        io_printf(" show triglocal  -Trigger a local detection.\n");
+        io_printf(" show trigpeer x -Trigger a peer detetion from station x.\n");
+        io_printf(" audio play x    -Play audio file x.\n");
+        io_printf(" audio stop      -Stop playing audio.\n");
+        io_printf(" audio volume x  -Set audio volume to x.\n");
+        io_printf(" light play x    -Play audio file x.\n");
+        io_printf(" light stop      -Stop playing audio.\n");
+        io_printf(" motor play x    -Play audio file x.\n");
+        io_printf(" motor stop      -Stop playing audio.\n");
+        io_printf(" motor home      -Home the motor.\n");
 
       } else if (!strcasecmp(msg.cmd, "cfg")) {
         if (!_cfg) {
@@ -153,22 +154,26 @@ static void CommandExecTask(void*) {
         if (arg1 && !strcasecmp(arg1, "start")){
           // show start
           io_printf("Queued up show start\n");
-          SendShow( ShowInputMsg{ ShowCmd::Start } );
+          SendShowQueue( ShowInputQueueMsg{ ShowInputQueueCmd::Start } );
         }
         else if (arg1  && !strcasecmp(arg1, "stop")){
           // show stop
           io_printf("Queued up show stop\n");
-          SendShow( ShowInputMsg{ ShowCmd::Stop } );
+          SendShowQueue( ShowInputQueueMsg{ ShowInputQueueCmd::Stop } );
         }
-        else if (arg1  && !strcasecmp(arg1, "trigger")){
-          // show trigger x
+        else if (arg1  && !strcasecmp(arg1, "trigpeer")){
+          // show trigpeer x
           int index;
           if (arg_as_int(msg, 1, index)) {
-            io_printf("Queued up show trigger index: %d\n", index);
-            SendShow( ShowInputMsg{ ShowCmd::Trigger, static_cast<unsigned char>(index) } );
+            io_printf("Queued up show trigger remote station: %d\n", index);
+            SendShowQueue( ShowInputQueueMsg{ ShowInputQueueCmd::TriggerPeer, static_cast<unsigned char>(index) } );
           } else {
             io_printf("Errr, Missing valid show index!");  
           }
+        }
+        else if (arg1  && !strcasecmp(arg1, "triglocal")){
+          // show triglocal
+          SendShowQueue( ShowInputQueueMsg{ ShowInputQueueCmd::TriggerLocal, 0 } );
         }
         else {
           io_printf("usage: show start/stop/trigger <index>\n");
@@ -181,7 +186,7 @@ static void CommandExecTask(void*) {
           int index;
           if (arg_as_int(msg, 1, index)) {
             io_printf("Queued up audio play %d.\n", index);
-            SendAudio( AudioCmdMsg{ AudioCmd::Play, static_cast<unsigned char>(index) } );
+            SendAudioQueue( AudioCmdQueueMsg{ AudioQueueCmd::Play, static_cast<unsigned char>(index) } );
           } else {
             io_printf("Error, missing valid audio file number!");  
           }
@@ -189,14 +194,14 @@ static void CommandExecTask(void*) {
         else if (arg1  && !strcasecmp(arg1, "stop")){
           // audio stop
           io_printf("Queued up audio stop\n");
-          SendAudio( AudioCmdMsg{ AudioCmd::Stop } );
+          SendAudioQueue( AudioCmdQueueMsg{ AudioQueueCmd::Stop } );
         }
         else if (arg1  && !strcasecmp(arg1, "volume")){
           // audio volume x
           int volume;
           if (arg_as_int(msg, 1, volume)) {
             io_printf("Queued up audio volume %d\n", volume);
-            SendAudio( AudioCmdMsg{ AudioCmd::Volume, static_cast<unsigned char>(volume) } );
+            SendAudioQueue( AudioCmdQueueMsg{ AudioQueueCmd::Volume, static_cast<unsigned char>(volume) } );
           } else {
             io_printf("Error, invalid volume!");  
           }
@@ -212,7 +217,7 @@ static void CommandExecTask(void*) {
           int index;
           if (arg_as_int(msg, 1, index)) {
             io_printf("Queued up light play %d.\n", index);
-            SendLight( LightCmdMsg{ LightCmd::Play, static_cast<unsigned char>(index) } );
+            SendLightQueue( LightCmdQueueMsg{ LightQueueCmd::Play, static_cast<unsigned char>(index) } );
           } else {
             io_printf("Error, missing valid light index number!");  
           }
@@ -220,7 +225,7 @@ static void CommandExecTask(void*) {
         else if (arg1  && !strcasecmp(arg1, "stop")){
           // light stop
           io_printf("Queued up light stop\n");
-          SendLight( LightCmdMsg{ LightCmd::Stop } );
+          SendLightQueue( LightCmdQueueMsg{ LightQueueCmd::Stop } );
         }
         else {
           io_printf("usage: light play/stop <val>\n");
@@ -233,7 +238,7 @@ static void CommandExecTask(void*) {
           int index;
           if (arg_as_int(msg, 1, index)) {
             io_printf("Queued up motor play %d.\n", index);
-            SendMotor( MotorCmdMsg{ MotorCmd::Play, static_cast<unsigned char>(index) } );
+            SendMotorQueue( MotorCmdQueueMsg{ MotorQueueCmd::Play, static_cast<unsigned char>(index) } );
           } else {
             io_printf("Error, missing valid motor index number!");  
           }
@@ -241,12 +246,12 @@ static void CommandExecTask(void*) {
         else if (arg1  && !strcasecmp(arg1, "stop")){
           // motor stop
           io_printf("Queued up motor stop\n");
-          SendMotor( MotorCmdMsg{MotorCmd::Stop } );
+          SendMotorQueue( MotorCmdQueueMsg{MotorQueueCmd::Stop } );
         }
         else if (arg1  && !strcasecmp(arg1, "home")){
           // motor home
           io_printf("Queued up motor home\n");
-          SendMotor( MotorCmdMsg{MotorCmd::Home } );
+          SendMotorQueue( MotorCmdQueueMsg{MotorQueueCmd::Home } );
         }
         else {
           io_printf("usage: motor play/stop/home <val>\n");

@@ -7,12 +7,12 @@
 
 
 static void AudioTask(void*) {
-  AudioCmdMsg in_msg{};
+  AudioCmdQueueMsg in_msg{};
 
   for (;;)
   {
 
-    if (xQueueReceive(queueBus.audioCmd, &in_msg, 0) == pdPASS) {
+    if (xQueueReceive(queueBus.audioCmdQueueHandle, &in_msg, 0) == pdPASS) {
       io_printf("Received incoming audio command: %d, param: %d\n", in_msg.cmd, in_msg.param);
     }
 

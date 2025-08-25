@@ -5,10 +5,11 @@
 #include "IoSync.h"
 #include "Light.h"
 #include "Logging.h"
+#include "Pins.h"
 
 
 // Constants for hardware interfaces, move to pins.h
-#define LED_PIN 48
+#define LED_PIN RGB_LED_DATA_PIN
 #define NUM_LEDS 60
 #define LED_TYPE WS2812B
 #define COLOR_ORDER GRB
@@ -125,14 +126,14 @@ static void LightTask(void*) {
   const TickType_t frameTicks = pdMS_TO_TICKS(1000UL / g_targetFps);
   TickType_t lastWake = xTaskGetTickCount();
 
-  LightCmdMsg msg{};
+  LightCmdQueueMsg msg{};
 
  for (;;) {
     // Drain any pending commands quickly (non-blocking)
-    while (xQueueReceive(queueBus.lightCmd, &msg, 0) == pdPASS) {
+    while (xQueueReceive(queueBus.lightCmdQueueHandle, &msg, 0) == pdPASS) {
       io_printf("[Light] Cmd=%u param=%u\n", (unsigned)msg.cmd, (unsigned)msg.param);
       switch (msg.cmd) {
-        case LightCmd::Play: {
+        case LightQueueCmd::Play: {
           uint8_t idx = msg.param % kLightAnimCount;
           if (!g_playing || idx != g_animIndex) {
             g_animIndex = idx;
@@ -141,7 +142,7 @@ static void LightTask(void*) {
           g_playing = true;
           break;
         }
-        case LightCmd::Stop: {
+        case LightQueueCmd::Stop: {
           g_playing = false;
           g_animReset = true;            // ensure clean start next time
           fill_solid(g_leds, NUM_LEDS, CRGB::Black);

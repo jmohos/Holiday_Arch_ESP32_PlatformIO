@@ -7,12 +7,12 @@
 
 
 static void MotorTask(void*) {
-  MotorCmdMsg in_msg{};
+  MotorCmdQueueMsg in_msg{};
 
   for (;;)
   {
 
-    if (xQueueReceive(queueBus.motorCmd, &in_msg, 0) == pdPASS) {
+    if (xQueueReceive(queueBus.motorCmdQueueHandle, &in_msg, 0) == pdPASS) {
       io_printf("Received incoming motor command: %d, param: %d\n", in_msg.cmd, in_msg.param);
     }
 

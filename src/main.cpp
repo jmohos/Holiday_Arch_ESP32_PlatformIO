@@ -10,7 +10,7 @@
 #include "Motor.h"
 #include "NetService.h"
 #include "Protocol.h"
-#include "SensorManager.h"
+#include "ProxDetect.h"
 #include "SettingsStore.h"
 #include "Show.h"
 
@@ -19,8 +19,6 @@ static const char* TAG_BOOT = "BOOT";
 
 Persist::SettingsStore settingsConfig;
 NetService *networkService = nullptr;
-SensorManager sensorManager;
-
 
 // Network receive callback
 void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user)
@@ -230,6 +228,18 @@ void setup() {
     ESP_LOGI(TAG_BOOT, "Motor task started.");
   }
 
+  // Start the proximity detection task.
+  if (!prox_detect_start(
+    configMAX_PRIORITIES - 1, /* Priority */
+    4096, /* Stack Bytes */
+    1 /* Core */ ))
+  {
+    FAULT_SET(FAULT_PROX_DETECT_TASK_FAULT);
+    ESP_LOGE(TAG_BOOT, "Failed to start proximity detection task!");
+  } else {
+    ESP_LOGI(TAG_BOOT, "Proximity detection task started.");
+  }
+
   // Start the master show task.
   if (!show_start(
     configMAX_PRIORITIES - 1, /* Priority */
@@ -242,20 +252,14 @@ void setup() {
     ESP_LOGI(TAG_BOOT, "Show task started.");
   }
 
-  sensorManager.begin();
-
 }
 
 // Background task
 void loop() {
 
-  sensorManager.update();
-  if (sensorManager.isPersonDetected()) {
-    io_printf("!!!PERSON DETECTED!!!\n");
-  }
 
   // Keep Arduino loop empty so tasks do the work.
-  //vTaskDelay(pdMS_TO_TICKS(1000));
+  vTaskDelay(pdMS_TO_TICKS(10));
 
   //send_ping();
 
