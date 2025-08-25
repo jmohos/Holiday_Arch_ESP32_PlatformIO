@@ -19,10 +19,12 @@ static void ShowTask(void*) {
       switch(in_msg.cmd) {
         case ShowInputQueueCmd::TriggerLocal:
           SendLightQueue( LightCmdQueueMsg{ LightQueueCmd::Play, 1 } );
+          SendAudioQueue( AudioCmdQueueMsg { AudioQueueCmd::Play, 1 });
         break;
 
         case ShowInputQueueCmd::TriggerPeer:
           SendLightQueue( LightCmdQueueMsg{ LightQueueCmd::Play, 2 } );
+          SendAudioQueue( AudioCmdQueueMsg { AudioQueueCmd::Play, 30 });
         break;
 
         case ShowInputQueueCmd::Start:

@@ -71,8 +71,8 @@ void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user
     {
       ESP_LOGI("NET", "[RX] TRIGGER_ANIM -> %u (from 0x%02X)\n", animId, v.hdr.src);
 
-      // BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-      // xQueueSendFromISR(animQueue, &animId, &xHigherPriorityTaskWoken);
+      io_printf("Queued up show trigger remote station: %d\n", index);
+      SendShowQueue( ShowInputQueueMsg{ ShowInputQueueCmd::TriggerPeer, static_cast<unsigned char>(animId) } );
     }
   }
   break;
