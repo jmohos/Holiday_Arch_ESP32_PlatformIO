@@ -1,6 +1,9 @@
 #pragma once
 #include <Arduino.h>
 
+// Audio animation show indices.
+enum class AudioAnim : uint8_t { Silence = 0, Bells = 1, Scream = 2, Count };
+static constexpr uint8_t NUM_AUDIO_ANIMATIONS = static_cast<uint8_t>(AudioAnim::Count);
 
 
 // Starts the audio task that drives the mp3 player hardware.

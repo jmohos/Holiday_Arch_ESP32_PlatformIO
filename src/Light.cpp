@@ -16,9 +16,7 @@
 #define LED_BRIGHTNESS_DEFAULT 128
 #define LIGHT_FPS_DEFAULT 60
 
-// ---------- Animation selection ----------
-enum class LightAnim : uint8_t { CandyCane = 0, Flames = 1, Bounce = 2 };
-static constexpr uint8_t kLightAnimCount = 3;
+
 
 // ---------- Module state ----------
 static CRGB     g_leds[NUM_LEDS];
@@ -114,7 +112,7 @@ static void anim_bounce(bool reset) {
 
 // Dispatch table
 typedef void (*AnimFn)(bool reset);
-static AnimFn kAnims[kLightAnimCount] = { anim_candycane, anim_flames, anim_bounce };
+static AnimFn kAnims[NUM_LIGHT_ANIMATIONS] = { anim_candycane, anim_flames, anim_bounce };
 
 
 
@@ -134,7 +132,7 @@ static void LightTask(void*) {
       io_printf("[Light] Cmd=%u param=%u\n", (unsigned)msg.cmd, (unsigned)msg.param);
       switch (msg.cmd) {
         case LightQueueCmd::Play: {
-          uint8_t idx = msg.param % kLightAnimCount;
+          uint8_t idx = msg.param % NUM_LIGHT_ANIMATIONS;
           if (!g_playing || idx != g_animIndex) {
             g_animIndex = idx;
             g_animReset = true;
@@ -157,7 +155,7 @@ static void LightTask(void*) {
 
     // Render one frame if playing
     if (g_playing) {
-      if (g_animIndex < kLightAnimCount) {
+      if (g_animIndex < NUM_LIGHT_ANIMATIONS) {
         kAnims[g_animIndex](g_animReset);
         g_animReset = false;
       } else {

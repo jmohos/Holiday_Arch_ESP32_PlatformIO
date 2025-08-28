@@ -1,6 +1,18 @@
 #pragma once
 #include <Arduino.h>
 
+enum ShowStates {
+  // Animations disabled
+  SHOWSTATE_START_DISABLE, 
+  SHOWSTATE_DISABLED,
+  
+  // Idle state animation loop
+  SHOWSTATE_IDLE,
+  SHOWSTATE_IDLE_STEP, 
+  SHOWSTATE_IDLE_WAIT
+  
+};
+
 
 // Starts the main show task that drives all animated elements.
 //
