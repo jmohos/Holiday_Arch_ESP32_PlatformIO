@@ -2,8 +2,15 @@
 #include <Arduino.h>
 
 // Light animation show indices.
-enum class LightAnim : uint8_t { CandyCane = 0, Flames = 1, Bounce = 2, Count };
-static constexpr uint8_t NUM_LIGHT_ANIMATIONS = static_cast<uint8_t>(LightAnim::Count);
+enum class LightAnim : uint8_t { 
+  BLANK = 0,     // All lights off
+  CANDYCANE = 0, //
+  FLAMES = 1,    // Flames from both ends
+  BOUNCE = 2,    //
+  COUNT          // Must be last
+};
+static constexpr uint8_t NUM_LIGHT_ANIMATIONS = static_cast<uint8_t>(LightAnim::COUNT);
+
 
 // Starts the light task that drives the addressable LED hardware.
 //

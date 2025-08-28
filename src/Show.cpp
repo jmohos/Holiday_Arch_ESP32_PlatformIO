@@ -9,24 +9,40 @@
 #include "IoSync.h"
 #include "Logging.h"
 
-// AnimationStep x[] = {
-//   { 1000, LightAnim::CandyCane, 0,0 },
-//   { 1000, LightAnim::Flames, 0,0 }
-// };
 
 
 const AnimationStep idleShow[] = {
-    { 10000, LightAnim::CandyCane, AudioAnim::Silence, MotorAnim::Still },
-    { 5000, LightAnim::Flames,    AudioAnim::Bells,   MotorAnim::Jiggle }
+    { 10000, LightAnim::CANDYCANE, AudioAnim::THERAMIN, MotorAnim::HOME },
+    { 10000, LightAnim::FLAMES,    AudioAnim::THERAMIN, MotorAnim::JIGGLE }
 };
-
 const uint8_t IDLE_SHOW_LENGTH = sizeof(idleShow) / sizeof(AnimationStep);
 
+const AnimationStep localShow[] = {
+    { 4000, LightAnim::BOUNCE,   AudioAnim::THUNDER,  MotorAnim::HOME },
+    { 500, LightAnim::FLAMES,    AudioAnim::ONE,      MotorAnim::HOME },
+    { 500, LightAnim::CANDYCANE, AudioAnim::TWO,      MotorAnim::HOME },
+    { 500, LightAnim::FLAMES,    AudioAnim::THREE,    MotorAnim::HOME },
+    { 500, LightAnim::CANDYCANE, AudioAnim::FOUR,     MotorAnim::HOME }
+};
+const uint8_t LOCAL_SHOW_LENGTH = sizeof(localShow) / sizeof(AnimationStep);
 
+const AnimationStep remoteShow[] = {
+    { 4000, LightAnim::FLAMES,    AudioAnim::THUNDER, MotorAnim::HOME   },
+    { 1000, LightAnim::BOUNCE,    AudioAnim::FIVE,    MotorAnim::JIGGLE },
+    { 1000, LightAnim::CANDYCANE, AudioAnim::FOUR,    MotorAnim::JIGGLE },
+    { 1000, LightAnim::BOUNCE,    AudioAnim::THREE,   MotorAnim::JIGGLE },
+    { 1000, LightAnim::CANDYCANE, AudioAnim::TWO,     MotorAnim::JIGGLE },
+    { 1000, LightAnim::CANDYCANE, AudioAnim::ONE,     MotorAnim::JIGGLE }
+};
+const uint8_t REMOTE_SHOW_LENGTH = sizeof(remoteShow) / sizeof(AnimationStep);
+
+#define START_IDLE_ANIM() do {currentShow = idleShow; currentShowLength = IDLE_SHOW_LENGTH;} while(0)
+#define START_LOCAL_ANIM() do {currentShow = localShow; currentShowLength = LOCAL_SHOW_LENGTH;} while(0)
+#define START_REMOTE_ANIM() do {currentShow = remoteShow; currentShowLength = REMOTE_SHOW_LENGTH;} while(0)
 
 
 static void ShowTask(void*) {
-  ShowStates showState = ShowStates::SHOWSTATE_IDLE;
+  ShowStates showState = ShowStates::SHOWSTATE_START_TABLE;
   uint32_t stepStartTime = 0;
   uint8_t currentStep = 0;
   const AnimationStep* currentShow = nullptr;
@@ -41,17 +57,18 @@ static void ShowTask(void*) {
 
       switch(in_msg.cmd) {
         case ShowInputQueueCmd::TriggerLocal:
-          SendLightQueue( LightCmdQueueMsg{ LightQueueCmd::Play, 1 } );
-          SendAudioQueue( AudioCmdQueueMsg { AudioQueueCmd::Play, 1 });
+          START_LOCAL_ANIM();
+          showState = SHOWSTATE_START_TABLE;
         break;
 
         case ShowInputQueueCmd::TriggerPeer:
-          SendLightQueue( LightCmdQueueMsg{ LightQueueCmd::Play, 2 } );
-          SendAudioQueue( AudioCmdQueueMsg { AudioQueueCmd::Play, 30 });
+          START_REMOTE_ANIM();
+          showState = SHOWSTATE_START_TABLE;
         break;
 
         case ShowInputQueueCmd::Start:
-          showState = ShowStates::SHOWSTATE_IDLE;
+          START_IDLE_ANIM();
+          showState = SHOWSTATE_START_TABLE;
           io_printf("Starting show in idle...\n");
         break;
 
@@ -66,6 +83,10 @@ static void ShowTask(void*) {
       }
     }
 
+  //
+  // The currentShow and currentShowLength must be selected prior to
+  // this point, otherwise it will default to the idle show.
+  //
   switch(showState) {
     case SHOWSTATE_START_DISABLE:
       currentShow = nullptr;
@@ -81,41 +102,49 @@ static void ShowTask(void*) {
       // Wait to be reenabled.
     break;
 
-    case SHOWSTATE_IDLE:
-      // Load the idle show for animation.
-      currentShow = idleShow;
-      currentShowLength = IDLE_SHOW_LENGTH;
+    case SHOWSTATE_START_TABLE:
+      if (!currentShow) {
+        START_IDLE_ANIM();
+        //io_printf("Show starting idle loop...\n");
+      }
+      //io_printf("SHOW - START NEW TABLE\n");
       currentStep = 0;
-      io_printf("Show starting idle loop...\n");
-      showState = SHOWSTATE_IDLE_STEP;
+      showState = SHOWSTATE_TABLE_STEP;
     break;
 
-    case SHOWSTATE_IDLE_STEP:
+    case SHOWSTATE_TABLE_STEP:
       // Activate all animated elements for this step.
       if (currentShow) {
         stepStartTime = millis();
         SendLightQueue( LightCmdQueueMsg{ LightQueueCmd::Play,  static_cast<uint8_t>(currentShow[currentStep].lightIndex) } );
         SendAudioQueue( AudioCmdQueueMsg{ AudioQueueCmd::Play,  static_cast<uint8_t>(currentShow[currentStep].audioIndex) } );
         SendMotorQueue( MotorCmdQueueMsg{ MotorQueueCmd::Play,  static_cast<uint8_t>(currentShow[currentStep].motorIndex) } );
-        showState = SHOWSTATE_IDLE_WAIT;
+        showState = SHOWSTATE_STEP_WAIT;
+        // io_printf("SHOW - STEP: %d  QUEUED UP LIGHT:%d AUDIO:%d MOTOR:%d\n",
+        //   currentStep,
+        //   static_cast<uint8_t>(currentShow[currentStep].lightIndex),
+        //   static_cast<uint8_t>(currentShow[currentStep].audioIndex),
+        //   static_cast<uint8_t>(currentShow[currentStep].motorIndex));
       } else {
         showState = SHOWSTATE_DISABLED;
       }
 
     break;
 
-    case SHOWSTATE_IDLE_WAIT:
+    case SHOWSTATE_STEP_WAIT:
       if (currentShow) {
         if (millis() - stepStartTime > currentShow[currentStep].duration_ms) {
           // Done with this line in the animation steps.
           currentStep++;
           if (currentStep >= currentShowLength) {
-            // We have completed all rows, start again.
-            currentShow = nullptr;
-            showState = SHOWSTATE_IDLE;
+            // We have completed all rows, return to Idle show.
+            START_IDLE_ANIM();
+            showState = SHOWSTATE_START_TABLE;
+            //io_printf("SHOW - RETURN TO IDLE\n");
           } else {
             // Do next row
-            showState = SHOWSTATE_IDLE_STEP;
+            showState = SHOWSTATE_TABLE_STEP;
+            //io_printf("SHOW - START NEXT STEP num %d of %d\n", currentStep, currentShowLength);
           }
         }
       } else {
@@ -126,15 +155,6 @@ static void ShowTask(void*) {
   }
 
   // 
-
-
-
-
-
-
-
-    //ESP_LOGD(TAG_SHOW, "[core %d] doing periodic work...", core());
-    //Serial.println("Show tick...");
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }

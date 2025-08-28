@@ -8,14 +8,13 @@
 #include "Pins.h"
 
 
-// Constants for hardware interfaces, move to pins.h
-#define LED_PIN RGB_LED_DATA_PIN
-#define NUM_LEDS 60
-#define LED_TYPE WS2812B
-#define COLOR_ORDER GRB
+// Addressable LED light strip config.
+#define LED_PIN                RGB_LED_DATA_PIN
+#define NUM_LEDS               60
+#define LED_TYPE               WS2812B
+#define COLOR_ORDER            GRB
 #define LED_BRIGHTNESS_DEFAULT 128
-#define LIGHT_FPS_DEFAULT 60
-
+#define LIGHT_FPS_DEFAULT      60
 
 
 // ---------- Module state ----------
@@ -24,7 +23,7 @@ static uint8_t  g_brightness = LED_BRIGHTNESS_DEFAULT;
 static uint16_t g_targetFps  = LIGHT_FPS_DEFAULT;
 
 static bool     g_playing     = false;
-static uint8_t  g_animIndex   = static_cast<uint8_t>(LightAnim::CandyCane);
+static uint8_t  g_animIndex   = static_cast<uint8_t>(LightAnim::BLANK);
 static bool     g_animReset   = true;   // set true on animation change
 
 // ---------- Helpers ----------
@@ -39,10 +38,8 @@ void light_set_fps(uint16_t fps) {
   g_targetFps = (fps == 0) ? 1 : fps;
 }
 
-// ---------- Animations ----------
-// Each render function draws one frame. If reset==true, clear/init its internal state.
 
-// CandyCane: moving red/white stripes.
+// CANDYCANE: moving red/white stripes.
 static void anim_candycane(bool reset) {
   static uint32_t t0 = 0;
   if (reset) { t0 = now_ms(); fill_solid(g_leds, NUM_LEDS, CRGB::Black); }
@@ -58,7 +55,7 @@ static void anim_candycane(bool reset) {
   }
 }
 
-// Flames: classic FastLED fire (1D).
+// FLAMES: classic FastLED fire (1D).
 static void anim_flames(bool reset) {
   static uint8_t heat[NUM_LEDS];
   if (reset) {
@@ -89,7 +86,7 @@ static void anim_flames(bool reset) {
   }
 }
 
-// Bounce: single bright pixel bouncing back & forth with fading trail.
+// BOUNCE: single bright pixel bouncing back & forth with fading trail.
 static void anim_bounce(bool reset) {
   static int pos = 0;
   static int dir = 1;
@@ -116,7 +113,8 @@ static AnimFn kAnims[NUM_LIGHT_ANIMATIONS] = { anim_candycane, anim_flames, anim
 
 
 
-
+// Master LightTask
+//
 static void LightTask(void*) {
   io_printf("[Light] Task started. num=%d, pin=%d, fps=%u, brightness=%u\n",
           NUM_LEDS, LED_PIN, (unsigned)g_targetFps, (unsigned)g_brightness);
@@ -130,16 +128,24 @@ static void LightTask(void*) {
     // Drain any pending commands quickly (non-blocking)
     while (xQueueReceive(queueBus.lightCmdQueueHandle, &msg, 0) == pdPASS) {
       io_printf("[Light] Cmd=%u param=%u\n", (unsigned)msg.cmd, (unsigned)msg.param);
+
+      // Process the incoming command.
       switch (msg.cmd) {
         case LightQueueCmd::Play: {
-          uint8_t idx = msg.param % NUM_LIGHT_ANIMATIONS;
-          if (!g_playing || idx != g_animIndex) {
-            g_animIndex = idx;
-            g_animReset = true;
+          if (msg.param >= NUM_LIGHT_ANIMATIONS) {
+            io_printf("Invalid light animation index: %d\n", msg.param);
           }
-          g_playing = true;
+          else {
+            if (!g_playing || msg.param != g_animIndex) {
+              // Start a new light animation.
+              g_animIndex = msg.param;
+              g_animReset = true;
+            }
+            g_playing = true;
+          }
           break;
         }
+
         case LightQueueCmd::Stop: {
           g_playing = false;
           g_animReset = true;            // ensure clean start next time
@@ -147,6 +153,7 @@ static void LightTask(void*) {
           FastLED.show();
           break;
         }
+
         default:
           // Ignore other commands for now
           break;
@@ -156,6 +163,7 @@ static void LightTask(void*) {
     // Render one frame if playing
     if (g_playing) {
       if (g_animIndex < NUM_LIGHT_ANIMATIONS) {
+        // Call the selected animation function.
         kAnims[g_animIndex](g_animReset);
         g_animReset = false;
       } else {

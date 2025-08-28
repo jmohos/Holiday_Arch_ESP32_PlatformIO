@@ -13,7 +13,7 @@ static void MotorTask(void*) {
   {
 
     if (xQueueReceive(queueBus.motorCmdQueueHandle, &in_msg, 0) == pdPASS) {
-      io_printf("Received incoming motor command: %d, param: %d\n", in_msg.cmd, in_msg.param);
+      //io_printf("Received incoming motor command: %d, param: %d\n", in_msg.cmd, in_msg.param);
     }
 
     vTaskDelay(pdMS_TO_TICKS(10));

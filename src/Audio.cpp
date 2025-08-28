@@ -20,6 +20,7 @@ bool audio_online = false;
 uint8_t volume = 20; // TODO: Store in config and restore.
 uint8_t folder = 1;  // Assuming all files are in folder #1.
 
+
 // Initialize the MP3 audio playback device using a dedicated serial port.
 // We also setup a GPIO input pin to monitor the state of the player to know
 // if it is still working on an audio file.
@@ -47,14 +48,14 @@ bool init_audio_player(int volume) {
 
 // Halt audio playback.
 void stop_audio_player() {
-  io_printf("Stopping audio playback...");
   myDFPlayer.stop();
+  io_printf("Stopping audio playback...");
 }
 
 // Play a file in the specified folder.
 void play_audio_file(uint8_t folder, uint8_t file) {
-  io_printf("Playing audio folder: %d, file: %d\n", folder, file);
   myDFPlayer.playFolder(folder, file);
+  io_printf("Playing audio folder: %d, file: %d\n", folder, file);
 }
 
 // Set the volume for playback.
@@ -62,8 +63,8 @@ void set_volume(uint8_t volume) {
   if (volume > MP3_MAX_VOLUME) {
     volume = MP3_MAX_VOLUME;
   }
-  io_printf("Setting audio volume to %d out of %d.", volume, MP3_MAX_VOLUME);
   myDFPlayer.volume(volume);  //Set volume between 0 and 30.
+  io_printf("Setting audio volume to %d out of %d.", volume, MP3_MAX_VOLUME);
 }
 
 // Test if we are still busy playing the last audio file.
@@ -94,14 +95,24 @@ static void AudioTask(void*) {
   {
 
     while (xQueueReceive(queueBus.audioCmdQueueHandle, &in_msg, 0) == pdPASS) {
-      io_printf("Received incoming audio command: %d, param: %d\n", in_msg.cmd, in_msg.param);
+      //io_printf("Received incoming audio command: %d, param: %d\n", in_msg.cmd, in_msg.param);
 
       if (!audio_online) {
         io_printf("Cannot process audio command, device offline!");
       } else {
         switch(in_msg.cmd) {
           case AudioQueueCmd::Play:
-            play_audio_file(folder, in_msg.param);
+            if (in_msg.param >= NUM_AUDIO_ANIMATIONS) {
+              io_printf("Invalid audio animation index %d\n", in_msg.param);
+            }
+            else {
+              if (in_msg.param ==  static_cast<uint8_t>(AudioAnim::SILENCE)) {
+                stop_audio_player();
+              } else {
+                // Map the audio animation index to a file on the MP3 SD card.
+                play_audio_file(folder, in_msg.param);
+              }
+            }
           break;
 
           case AudioQueueCmd::Stop:
