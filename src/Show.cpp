@@ -3,42 +3,64 @@
 #include "Audio.h"
 #include "CommandQueues.h"
 #include "Light.h"
+#include "main.h"
 #include "Motor.h"
 #include "Show.h"
 
 #include "IoSync.h"
 #include "Logging.h"
+#include "Protocol.h"
+#include "SettingsStore.h"
 
 
-
+// Animation Profiles
 const AnimationStep idleShow[] = {
-    { 10000, LightAnim::CANDYCANE, AudioAnim::THERAMIN, MotorAnim::HOME },
-    { 10000, LightAnim::FLAMES,    AudioAnim::THERAMIN, MotorAnim::JIGGLE }
+    { 15000, LightAnim::CANDYCANE, AudioAnim::THERAMIN, MotorAnim::HOME },
 };
 const uint8_t IDLE_SHOW_LENGTH = sizeof(idleShow) / sizeof(AnimationStep);
 
 const AnimationStep localShow[] = {
     { 4000, LightAnim::BOUNCE,   AudioAnim::THUNDER,  MotorAnim::HOME },
-    { 500, LightAnim::FLAMES,    AudioAnim::ONE,      MotorAnim::HOME },
-    { 500, LightAnim::CANDYCANE, AudioAnim::TWO,      MotorAnim::HOME },
-    { 500, LightAnim::FLAMES,    AudioAnim::THREE,    MotorAnim::HOME },
-    { 500, LightAnim::CANDYCANE, AudioAnim::FOUR,     MotorAnim::HOME }
+    { 1000, LightAnim::BOUNCE,    AudioAnim::ONE,      MotorAnim::HOME },
+    { 1000, LightAnim::BOUNCE,    AudioAnim::TWO,      MotorAnim::HOME },
+    { 1000, LightAnim::BOUNCE,    AudioAnim::THREE,    MotorAnim::HOME },
+    { 1000, LightAnim::BOUNCE,    AudioAnim::FOUR,     MotorAnim::HOME }
 };
 const uint8_t LOCAL_SHOW_LENGTH = sizeof(localShow) / sizeof(AnimationStep);
 
 const AnimationStep remoteShow[] = {
     { 4000, LightAnim::FLAMES,    AudioAnim::THUNDER, MotorAnim::HOME   },
-    { 1000, LightAnim::BOUNCE,    AudioAnim::FIVE,    MotorAnim::JIGGLE },
-    { 1000, LightAnim::CANDYCANE, AudioAnim::FOUR,    MotorAnim::JIGGLE },
-    { 1000, LightAnim::BOUNCE,    AudioAnim::THREE,   MotorAnim::JIGGLE },
-    { 1000, LightAnim::CANDYCANE, AudioAnim::TWO,     MotorAnim::JIGGLE },
-    { 1000, LightAnim::CANDYCANE, AudioAnim::ONE,     MotorAnim::JIGGLE }
+    { 1000, LightAnim::FLAMES,    AudioAnim::FIVE,    MotorAnim::JIGGLE },
+    { 1000, LightAnim::FLAMES,    AudioAnim::FOUR,    MotorAnim::JIGGLE },
+    { 1000, LightAnim::FLAMES,    AudioAnim::THREE,   MotorAnim::JIGGLE },
+    { 1000, LightAnim::FLAMES,    AudioAnim::TWO,     MotorAnim::JIGGLE },
 };
 const uint8_t REMOTE_SHOW_LENGTH = sizeof(remoteShow) / sizeof(AnimationStep);
 
 #define START_IDLE_ANIM() do {currentShow = idleShow; currentShowLength = IDLE_SHOW_LENGTH;} while(0)
 #define START_LOCAL_ANIM() do {currentShow = localShow; currentShowLength = LOCAL_SHOW_LENGTH;} while(0)
 #define START_REMOTE_ANIM() do {currentShow = remoteShow; currentShowLength = REMOTE_SHOW_LENGTH;} while(0)
+
+// 
+bool send_trigger(uint8_t animId) {
+  uint8_t frame[Proto::HDR_SIZE + 1];
+  size_t len = Proto::buildTriggerAnim(
+      frame,
+      sizeof(frame),
+      Proto::BROADCAST,                // send to all peers
+      settingsConfig.deviceId(),       // my node id as source
+      animId);
+  if (len == 0) {
+    ESP_LOGE("NET", "Failed to pack trigger message!");
+    return false;
+  }
+  ESP_LOGI("NET", "Sending TRIGGER_ANIM %u...", animId);
+  int sent = networkService->send(frame, len);
+  if (sent == (int)len) return true;
+  ESP_LOGE("NET", "Trigger send failed! rc=%d", sent);
+  return false;
+}
+
 
 
 static void ShowTask(void*) {
@@ -58,6 +80,10 @@ static void ShowTask(void*) {
       switch(in_msg.cmd) {
         case ShowInputQueueCmd::TriggerLocal:
           START_LOCAL_ANIM();
+
+          // Send out to peers a remote trigger messsage
+          send_trigger(1);
+
           showState = SHOWSTATE_START_TABLE;
         break;
 

@@ -10,6 +10,4 @@
 // Returns: true on success, false on failure.
 bool command_exec_start(UBaseType_t priority = 2,
                         uint32_t stack_bytes = 4096,
-                        BaseType_t core = 1,
-                        Persist::SettingsStore* cfg=nullptr,
-                        NetService* net=nullptr);
+                        BaseType_t core = 1);

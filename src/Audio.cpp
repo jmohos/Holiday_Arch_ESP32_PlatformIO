@@ -18,7 +18,7 @@ HardwareSerial HWSerial1(1);
 
 bool audio_online = false;
 uint8_t volume = 20; // TODO: Store in config and restore.
-uint8_t folder = 1;  // Assuming all files are in folder #1.
+uint8_t folder = 1;  // Assuming all files are in folder "01".
 
 
 // Initialize the MP3 audio playback device using a dedicated serial port.
@@ -35,8 +35,7 @@ bool init_audio_player(int volume) {
   pinMode(MP3_BUSY_PIN, INPUT_PULLUP);
 
   // Activate the audio player interface
-  //  if (!myDFPlayer.begin(MP3_PLAYER_SERIAL, true, false)) {  // Use Acks, dont reset(pops)
-  if (!myDFPlayer.begin(HWSerial1, true, true)) {
+  if (!myDFPlayer.begin(HWSerial1, true, true)) {// Use Acks, Hard reset (false=fewer pops)
     return false;
   } else {
     myDFPlayer.setTimeOut(1000); //Set serial communictaion time out 1000ms

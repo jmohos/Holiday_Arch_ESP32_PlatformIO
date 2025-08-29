@@ -5,11 +5,9 @@
 #include "Faults.h"
 #include "IoSync.h"
 #include "Logging.h"
+#include "main.h"
 #include "NetService.h"
 #include "SettingsStore.h"
-
-Persist::SettingsStore* _cfg = nullptr;
-NetService *_net = nullptr;
 
 
 static void CommandExecTask(void*) {
@@ -43,18 +41,15 @@ static void CommandExecTask(void*) {
         io_printf(" motor home      -Home the motor.\n");
 
       } else if (!strcasecmp(msg.cmd, "cfg")) {
-        if (!_cfg) {
-          io_printf("Invalid configuration contents!");
-          continue;
-        }
+
         const char* arg1 = arg_as_str(msg, 0);
         if (arg1) {
           if (!strcasecmp(arg1, "show")) {
             // "cfg show"
             io_printf("Configuration Contents:\n");
-            io_printf(" device id: %u\n", _cfg->deviceId());
-            io_printf(" WiFi SSID: >%s< Len: %u\n", _cfg->ssid().c_str(), _cfg->ssid().length());
-            io_printf(" WiFi pass: >%s< Len: %u\n", _cfg->password().c_str(), _cfg->password().length());
+            io_printf(" device id: %u\n", settingsConfig.deviceId());
+            io_printf(" WiFi SSID: >%s< Len: %u\n", settingsConfig.ssid().c_str(), settingsConfig.ssid().length());
+            io_printf(" WiFi pass: >%s< Len: %u\n", settingsConfig.password().c_str(), settingsConfig.password().length());
           }
           else if (!strcasecmp(arg1, "set")) {
             // We need two arguments after set.
@@ -72,7 +67,7 @@ static void CommandExecTask(void*) {
                   io_printf("Invalid id, must be between 1 and 254!");
                 } else {
                   io_printf("Setting cfg device id to: %u\n", id);
-                  _cfg->setDeviceId(id);
+                  settingsConfig.setDeviceId(id);
                 }
               } else {
                 io_printf("Invalid id input!");
@@ -82,13 +77,13 @@ static void CommandExecTask(void*) {
             else if (!strcasecmp(arg2, "ssid")) {
               const char* ssid = arg_as_str(msg, 2);
               io_printf("Setting cfg WiFi SSID to: %s\n", ssid);
-              _cfg->setSsid(ssid);
+              settingsConfig.setSsid(ssid);
             }
             // cfg set pass
             else if (!strcasecmp(arg2, "pass")) {
               const char* pass = arg_as_str(msg, 2);
               io_printf("Setting cfg WiFI password to: %s\n", pass);
-              _cfg->setPassword(pass);
+              settingsConfig.setPassword(pass);
             }
             else {
               io_printf("Unsupported parameter: %s\n", arg2);
@@ -96,7 +91,7 @@ static void CommandExecTask(void*) {
           }
           // cfg load
           else if (!strcasecmp(arg1, "load")) {
-            if (_cfg->load()) {
+            if (settingsConfig.load()) {
               io_printf("Successfully load config parameters.");
             } else {
               io_printf("Failed to load config parameters!");
@@ -104,7 +99,7 @@ static void CommandExecTask(void*) {
           }
           // cfg save
           else if (!strcasecmp(arg1, "save")) {
-            if (_cfg->save()) {
+            if (settingsConfig.save()) {
               io_printf("Successfully saved config parameters.");
             } else {
               io_printf("Failed to save config parameters!");
@@ -112,7 +107,7 @@ static void CommandExecTask(void*) {
           }
           // cfg defaults
           else if (!strcasecmp(arg1, "defaults")) {
-            _cfg->setDefaults();
+            settingsConfig.setDefaults();
             io_printf("Default config parameters loaded, not saved.");
           }
           else {
@@ -120,7 +115,7 @@ static void CommandExecTask(void*) {
           }
         }
       } else if (!strcasecmp(msg.cmd, "net")) {
-        if (!_net ) {
+        if (!networkService ) {
           io_printf("Network manager unavailable!");
           continue;
         }
@@ -129,17 +124,17 @@ static void CommandExecTask(void*) {
           if (!strcasecmp(arg1, "show")) {
             // "net show"
             io_printf("Network Status:\n");
-            io_printf("  Connected: %s\n", _net->isConnected() ? "CONNECTED" : "DISCONNECTED");
-            io_printf("  SSID: >%s<\n", _net->ssid().c_str());
-            io_printf("  IP: %s\n", _net->localIP().c_str());
-            io_printf("  GW: %s\n", _net->gatewayIP().c_str());
-            io_printf("  Subnet: %s\n", _net->subnetMask().c_str());
-            io_printf("  BSSID: %s\n", _net->bssid().c_str());
-            io_printf("  Chan: %u\n", _net->channel());
-            io_printf("  RSSI: %d dBm\n", _net->rssi());
-            io_printf("  McastIP: %s\n", _net->mcastIP().c_str());
-            io_printf("  McastPort: %u\n", _net->mcastPort());
-            io_printf("  Mcast Listening: %s\n", _net->isListening() ? "LISTENING" : "IDLE");
+            io_printf("  Connected: %s\n", networkService->isConnected() ? "CONNECTED" : "DISCONNECTED");
+            io_printf("  SSID: >%s<\n", networkService->ssid().c_str());
+            io_printf("  IP: %s\n", networkService->localIP().c_str());
+            io_printf("  GW: %s\n", networkService->gatewayIP().c_str());
+            io_printf("  Subnet: %s\n", networkService->subnetMask().c_str());
+            io_printf("  BSSID: %s\n", networkService->bssid().c_str());
+            io_printf("  Chan: %u\n", networkService->channel());
+            io_printf("  RSSI: %d dBm\n", networkService->rssi());
+            io_printf("  McastIP: %s\n", networkService->mcastIP().c_str());
+            io_printf("  McastPort: %u\n", networkService->mcastPort());
+            io_printf("  Mcast Listening: %s\n", networkService->isListening() ? "LISTENING" : "IDLE");
             io_printf(" -------------\n");
 
           }
@@ -295,10 +290,8 @@ static void CommandExecTask(void*) {
   }
 }
 
-bool command_exec_start(UBaseType_t priority, uint32_t stack_bytes, BaseType_t core, Persist::SettingsStore* cfg, NetService *net) {
+bool command_exec_start(UBaseType_t priority, uint32_t stack_bytes, BaseType_t core) {
   TaskHandle_t h = nullptr;
-  _cfg = cfg;
-  _net = net;
   BaseType_t ok = xTaskCreatePinnedToCore(
       CommandExecTask, "CommandExec", stack_bytes, nullptr, priority, &h, core);
   return ok == pdPASS;

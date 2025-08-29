@@ -71,7 +71,7 @@ void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user
     {
       ESP_LOGI("NET", "[RX] TRIGGER_ANIM -> %u (from 0x%02X)\n", animId, v.hdr.src);
 
-      io_printf("Queued up show trigger remote station: %d\n", index);
+      io_printf("Queued up show trigger remote station: %d\n", animId);
       SendShowQueue( ShowInputQueueMsg{ ShowInputQueueCmd::TriggerPeer, static_cast<unsigned char>(animId) } );
     }
   }
@@ -85,6 +85,7 @@ void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user
   }
 }
 
+// Network ping sender
 bool send_ping() {
   uint8_t ping_packet[sizeof(Proto::Header)];
   size_t len=0;
@@ -104,6 +105,7 @@ bool send_ping() {
   ESP_LOGE("NET", "Ping send failed!");
   return false;
 }
+
 
 // Bootup initialization.
 void setup() {
@@ -182,9 +184,7 @@ void setup() {
   if (!command_exec_start(
     2, /* Priority */
     4096, /* Stack Bytes */
-    1, /* Core */
-    &settingsConfig, /* Configuration */
-    networkService /* Net Manager */))
+    1 /* Core */))
   {
     FAULT_SET(FAULT_CMD_EXEC_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start command executor task!");
