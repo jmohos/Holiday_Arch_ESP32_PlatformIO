@@ -11,8 +11,8 @@
 // Addressable LED light strip config.
 #define LED_PIN                RGB_LED_DATA_PIN
 #define NUM_LEDS               60
-#define LED_TYPE               WS2812B
-#define COLOR_ORDER            GRB
+#define LED_TYPE               WS2812B /* WS2811 */
+#define COLOR_ORDER            GRB     /* RGB */
 #define LED_BRIGHTNESS_DEFAULT 128
 #define LIGHT_FPS_DEFAULT      60
 
@@ -127,7 +127,7 @@ static void LightTask(void*) {
  for (;;) {
     // Drain any pending commands quickly (non-blocking)
     while (xQueueReceive(queueBus.lightCmdQueueHandle, &msg, 0) == pdPASS) {
-      io_printf("[Light] Cmd=%u param=%u\n", (unsigned)msg.cmd, (unsigned)msg.param);
+      //io_printf("[Light] Cmd=%u param=%u\n", (unsigned)msg.cmd, (unsigned)msg.param);
 
       // Process the incoming command.
       switch (msg.cmd) {

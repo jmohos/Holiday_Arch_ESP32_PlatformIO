@@ -59,5 +59,4 @@ const int SPARE_2_PIN = 15;
 const int SERVO_1_PIN = 1;
 const int SERVO_2_PIN = 2;
 
-
 #endif
