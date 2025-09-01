@@ -38,9 +38,9 @@ static void ProxDetectTask(void*) {
   io_printf("[Prox] Task started.\n");
 
   // Configure the I2C bus pins for DATA and CLOCK.
-  //Wire.setSDA(I2C0_SDA_PIN);
-  //Wire.setSCL(I2C0_SCL_PIN);
-  Wire.begin(I2C0_SDA_PIN, I2C0_SCL_PIN, 400000);
+  //Wire.setSDA(I2C_SDA_PIN);
+  //Wire.setSCL(I2C_SCL_PIN);
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN, 400000);
   //Wire.setClock(400000);  // use 400 kHz I2C
 
   tof_sensor.setTimeout(500);

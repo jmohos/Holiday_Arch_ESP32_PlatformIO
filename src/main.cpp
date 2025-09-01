@@ -172,7 +172,7 @@ void setup() {
     8, /* Queue Length */
     2, /* Priority */
     4096, /* Stack Bytes */
-    1 /* Core */ ))
+    0 /* Core */ ))
   {
     FAULT_SET(FAULT_CONSOLE_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start console task!");
@@ -184,7 +184,7 @@ void setup() {
   if (!command_exec_start(
     2, /* Priority */
     4096, /* Stack Bytes */
-    1 /* Core */))
+    0 /* Core */))
   {
     FAULT_SET(FAULT_CMD_EXEC_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start command executor task!");
@@ -196,7 +196,7 @@ void setup() {
   if (!audio_start(
     configMAX_PRIORITIES - 1, /* Priority */
     4096, /* Stack Bytes */
-    1 /* Core */ ))
+    0 /* Core */ ))
   {
     FAULT_SET(FAULT_AUDIO_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start audio task!");
@@ -208,7 +208,7 @@ void setup() {
   if (!light_start(
     configMAX_PRIORITIES - 1, /* Priority */
     4096, /* Stack Bytes */
-    1 /* Core */ ))
+    0 /* Core */ ))
   {
     FAULT_SET(FAULT_LIGHT_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start light task!");
@@ -232,7 +232,7 @@ void setup() {
   if (!prox_detect_start(
     configMAX_PRIORITIES - 1, /* Priority */
     4096, /* Stack Bytes */
-    1 /* Core */ ))
+    0 /* Core */ ))
   {
     FAULT_SET(FAULT_PROX_DETECT_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start proximity detection task!");
@@ -244,7 +244,7 @@ void setup() {
   if (!show_start(
     configMAX_PRIORITIES - 1, /* Priority */
     8192, /* Stack Bytes */
-    1 /* Core */ ))
+    0 /* Core */ ))
   {
     FAULT_SET(FAULT_SHOW_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start show task!");

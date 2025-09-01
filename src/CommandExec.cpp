@@ -24,6 +24,7 @@ static void CommandExecTask(void*) {
         io_printf(" cfg defaults   - Load config defaults.\n");
         io_printf(" cfg load       - Load config from memory.\n");
         io_printf(" cfg save       - Save config to memory.\n");
+        io_printf(" cpu            - Report CPU stats.\n");
         io_printf(" faults         - Report list of active faults.\n");
         io_printf(" net show       - Show network status.\n");        
         io_printf(" restart        - Reboot the CPU.\n");
@@ -114,6 +115,8 @@ static void CommandExecTask(void*) {
             io_printf("Unsupported command: %s\n", arg1);
           }
         }
+      } else if (!strcasecmp(msg.cmd, "cpu")) {
+        io_printf("CPU freq: %d MHz\n", getCpuFrequencyMhz());
       } else if (!strcasecmp(msg.cmd, "net")) {
         if (!networkService ) {
           io_printf("Network manager unavailable!");

@@ -46,8 +46,8 @@ public:
   void Setup() {
 
     // Configure the I2C bus pins for DATA and CLOCK.
-    Wire.setSDA(I2C0_SDA_PIN);
-    Wire.setSCL(I2C0_SCL_PIN);
+    Wire.setSDA(I2C_SDA_PIN);
+    Wire.setSCL(I2C_SCL_PIN);
     Wire.begin();
     Wire.setClock(400000);  // use 400 kHz I2C
 

@@ -14,15 +14,12 @@ static constexpr uint8_t MP3_MAX_VOLUME = 30;
 DFRobotDFPlayerMini myDFPlayer;
 
 // For ESP32 we have to use hardware serial, not Serialx
-HardwareSerial HWSerial1(2);
+//HardwareSerial HWSerial1(1);
+HardwareSerial& MP3SER = Serial1;
 
 bool audio_online = false;
 uint8_t volume = 20; // TODO: Store in config and restore.
 uint8_t folder = 1;  // Assuming all files are in folder "01".
-
-// TODO: Remove after debugging.
-#define DEBUG_PIN_HIGH() digitalWrite(SPARE_1_PIN, HIGH)
-#define DEBUG_PIN_LOW() digitalWrite(SPARE_1_PIN, LOW)
 
 // Initialize the MP3 audio playback device using a dedicated serial port.
 // We also setup a GPIO input pin to monitor the state of the player to know
@@ -30,16 +27,20 @@ uint8_t folder = 1;  // Assuming all files are in folder "01".
 bool init_audio_player(int volume)
 {
   // Open serial port to DFPlayer device at 9600 baud
-  HWSerial1.begin(9600, SERIAL_8N1, MP3_RX_PIN, MP3_TX_PIN);
+  //HWSerial1.begin(9600, SERIAL_8N1, MP3_RX_PIN, MP3_TX_PIN);
+  MP3SER.begin(9600, SERIAL_8N1, MP3_RX_PIN, MP3_TX_PIN);
 
   delay(1000);
   io_printf("Initializing DFRobot DFPlayer...");
 
+  #ifdef USE_MP3_BUSY_PIN
   // Configure MP3 Busy monitoring pin at GPIO input
   pinMode(MP3_BUSY_PIN, INPUT_PULLUP);
+  #endif
 
   // Activate the audio player interface
-  if (!myDFPlayer.begin(HWSerial1, true, true))
+  //if (!myDFPlayer.begin(HWSerial1, true, true))
+  if (!myDFPlayer.begin(MP3SER, true, true))
   { // Use Acks, Hard reset (false=fewer pops)
     return false;
   }
@@ -141,6 +142,7 @@ void set_volume(uint8_t volume)
   io_printf("Setting audio volume to %d out of %d.", volume, MP3_MAX_VOLUME);
 }
 
+#ifdef USE_MP3_BUSY_PIN
 // Test if we are still busy playing the last audio file.
 // Return true if playing, false if idle.
 bool is_audio_playing()
@@ -156,6 +158,7 @@ bool is_audio_playing()
     return true;
   }
 }
+#endif
 
 static void AudioTask(void *)
 {
