@@ -15,25 +15,25 @@
 
 // Animation Profiles
 const AnimationStep idleShow[] = {
-    { 15000, LightAnim::CANDYCANE, AudioAnim::THERAMIN, MotorAnim::HOME },
+    { 15000, LightAnim::FLAMES, AudioAnim::THERAMIN, MotorAnim::HOME },
 };
 const uint8_t IDLE_SHOW_LENGTH = sizeof(idleShow) / sizeof(AnimationStep);
 
 const AnimationStep localShow[] = {
-    { 4000, LightAnim::BOUNCE,   AudioAnim::THUNDER,  MotorAnim::HOME },
-    { 1000, LightAnim::BOUNCE,    AudioAnim::ONE,      MotorAnim::HOME },
-    { 1000, LightAnim::BOUNCE,    AudioAnim::TWO,      MotorAnim::HOME },
-    { 1000, LightAnim::BOUNCE,    AudioAnim::THREE,    MotorAnim::HOME },
-    { 1000, LightAnim::BOUNCE,    AudioAnim::FOUR,     MotorAnim::HOME }
+    { 4000, LightAnim::CANDYCANE,   AudioAnim::THUNDER,  MotorAnim::JIGGLE },
+    { 1000, LightAnim::CANDYCANE,    AudioAnim::ONE,     MotorAnim::JIGGLE },
+    { 1000, LightAnim::CANDYCANE,    AudioAnim::TWO,     MotorAnim::JIGGLE },
+    { 1000, LightAnim::CANDYCANE,    AudioAnim::THREE,   MotorAnim::JIGGLE },
+    { 1000, LightAnim::CANDYCANE,    AudioAnim::FOUR,    MotorAnim::JIGGLE }
 };
 const uint8_t LOCAL_SHOW_LENGTH = sizeof(localShow) / sizeof(AnimationStep);
 
 const AnimationStep remoteShow[] = {
-    { 4000, LightAnim::FLAMES,    AudioAnim::THUNDER, MotorAnim::HOME   },
-    { 1000, LightAnim::FLAMES,    AudioAnim::FIVE,    MotorAnim::JIGGLE },
-    { 1000, LightAnim::FLAMES,    AudioAnim::FOUR,    MotorAnim::JIGGLE },
-    { 1000, LightAnim::FLAMES,    AudioAnim::THREE,   MotorAnim::JIGGLE },
-    { 1000, LightAnim::FLAMES,    AudioAnim::TWO,     MotorAnim::JIGGLE },
+    { 4000, LightAnim::BOUNCE,    AudioAnim::THUNDER, MotorAnim::HAMMER },
+    { 1000, LightAnim::BOUNCE,    AudioAnim::FIVE,    MotorAnim::HAMMER },
+    { 1000, LightAnim::BOUNCE,    AudioAnim::FOUR,    MotorAnim::HAMMER },
+    { 1000, LightAnim::BOUNCE,    AudioAnim::THREE,   MotorAnim::HAMMER },
+    { 1000, LightAnim::BOUNCE,    AudioAnim::TWO,     MotorAnim::HAMMER },
 };
 const uint8_t REMOTE_SHOW_LENGTH = sizeof(remoteShow) / sizeof(AnimationStep);
 
