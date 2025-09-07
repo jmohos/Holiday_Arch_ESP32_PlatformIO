@@ -21,8 +21,20 @@ static float HOME_ANGLE = 90.0;
 static float LEFT_ANGLE = 0.0;
 static float RIGHT_ANGLE = 180.0;
 
+static uint16_t g_targetFps = 50;
+
 // ---------- Helpers ----------
 static inline uint32_t now_ms() { return (uint32_t)(esp_timer_get_time() / 1000ULL); }
+
+// Jiggle animation pattern
+static constexpr uint16_t NUM_JIGGLE_STEPS = 8;
+static constexpr float jiggle_positions[NUM_JIGGLE_STEPS] = {90.0, 100.0, 110.0, 100.0, 90.0, 80.0, 70.0, 80.0};
+static constexpr uint32_t jiggle_delays[NUM_JIGGLE_STEPS] = {50, 50, 50, 50, 50, 50, 50, 50};
+
+// Hammer animation pattern
+static constexpr uint16_t NUM_HAMMER_STEPS = 8;
+static constexpr float hammer_positions[NUM_HAMMER_STEPS] = {180.0, 0.0, 120.0, 40.0};
+static constexpr uint32_t hammer_delays[NUM_HAMMER_STEPS] = {500, 500, 500, 500};
 
 // Force the motors to their idle position immediately.
 void motor_idle()
@@ -35,8 +47,8 @@ void motor_idle()
 static void anim_motor_home(bool reset)
 {
   static uint32_t t0 = 0;
-  static double speed = 20; /* deg/sec */
-  static double ke = 1.0;
+  static double speed = 90; /* deg/sec */
+  static double ke = 0.0;   /* 0 = linear ramping/easing */
 
   if (reset)
   {
@@ -54,41 +66,85 @@ static void anim_motor_home(bool reset)
 // Motor animation routine to jiggle
 static void anim_motor_jiggle(bool reset)
 {
-  static uint32_t t0 = 0;
-  static double speed = 10; /* deg/sec */
-  static double ke = 1.0;
+  static uint32_t last_update_time = 0;
+  static uint8_t index = 0;
+  static bool in_delay = false;
+
+  static double speed = 180; /* deg/sec */
+  static double ke = 0.1;    /* Slight damping */
 
   if (reset)
   {
-    t0 = now_ms();
-    motor_idle();
+    index = 0;
+    last_update_time = 0;
+    in_delay = false;
   }
 
-  const uint32_t t = now_ms() - t0;
+  if (index >= NUM_JIGGLE_STEPS)
+  {
+    index = 0;
+  }
 
-  // TODO: Execute jiggle pattern
-  myservo.write(SERVO_1_PIN, LEFT_ANGLE, speed, ke);
-  myservo.write(SERVO_2_PIN, RIGHT_ANGLE, speed, ke);  
+  // Update the servos often to support the ramping in between changes.
+  myservo.write(SERVO_1_PIN, jiggle_positions[index], speed, ke);
+  myservo.write(SERVO_2_PIN, jiggle_positions[index], speed, ke);
+
+  if (!in_delay)
+  {
+    last_update_time = now_ms();
+    in_delay = true;
+  }
+  else
+  {
+    uint32_t delta_msec = now_ms() - last_update_time;
+    if (delta_msec >= jiggle_delays[index])
+    {
+      index++;
+      in_delay = false;
+    }
+  }
 }
 
 // Motor animation routine to hammer
 static void anim_motor_hammer(bool reset)
 {
-  static uint32_t t0 = 0;
+  static uint32_t last_update_time = 0;
+  static uint8_t index = 0;
+  static bool in_delay = false;
+
   static double speed = 180; /* deg/sec */
-  static double ke = 1.0;
+  static double ke = 0.0;    /* No damping */
 
   if (reset)
   {
-    t0 = now_ms();
-    motor_idle();
+    index = 0;
+    last_update_time = 0;
+    in_delay = false;
   }
 
-  const uint32_t t = now_ms() - t0;
+  if (index >= NUM_JIGGLE_STEPS)
+  {
+    index = 0;
+  }
 
-  // TODO: Execute hammer pattern
-  myservo.write(SERVO_1_PIN, RIGHT_ANGLE, speed, ke);
-  myservo.write(SERVO_2_PIN, LEFT_ANGLE, speed, ke);  
+  // Update the servos often to support the ramping in between changes.
+  myservo.write(SERVO_1_PIN, hammer_positions[index], speed, ke);
+  myservo.write(SERVO_2_PIN, hammer_positions[index], speed, ke);
+
+  if (!in_delay)
+  {
+    last_update_time = now_ms();
+    in_delay = true;
+  }
+  else
+  {
+    uint32_t delta_msec = now_ms() - last_update_time;
+    if (delta_msec >= hammer_delays[index])
+    {
+      index++;
+      in_delay = false;
+    }
+  }
 }
 
 // Dispatch table for all motor animation routines.
@@ -98,6 +154,8 @@ static AnimFn kAnims[NUM_MOTOR_ANIMATIONS] = {anim_motor_home, anim_motor_jiggle
 static void MotorTask(void *)
 {
   MotorCmdQueueMsg msg{};
+  const TickType_t frameTicks = pdMS_TO_TICKS(1000UL / g_targetFps);
+  TickType_t lastWake = xTaskGetTickCount();
 
   // Setup the timer and PWM outputs for hobby servo compliant patterns.
   motor_idle();
@@ -124,7 +182,7 @@ static void MotorTask(void *)
         {
           if (!g_playing || msg.param != g_animIndex)
           {
-            // Start a new light animation.
+            // Start a new motor animation.
             g_animIndex = msg.param;
             g_animReset = true;
           }
@@ -165,7 +223,8 @@ static void MotorTask(void *)
       }
     }
 
-    vTaskDelay(pdMS_TO_TICKS(10));
+    // Frame pacing
+    vTaskDelayUntil(&lastWake, frameTicks);
   }
 }
 

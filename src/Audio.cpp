@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "DFRobotDFPlayerMini.h"
+// #include <DFPlayerMini_Fast.h>
 
 #include "Audio.h"
 #include "CommandQueues.h"
@@ -12,13 +13,14 @@ static constexpr uint8_t MP3_MAX_VOLUME = 30;
 
 // DFPlayer Mini MP3 Music Player Support
 DFRobotDFPlayerMini myDFPlayer;
+// DFPlayerMini_Fast myDFPlayer;
 
 // For ESP32 we have to use hardware serial, not Serialx
-//HardwareSerial HWSerial1(1);
-HardwareSerial& MP3SER = Serial1;
+// HardwareSerial HWSerial1(1);
+HardwareSerial &MP3SER = Serial1;
 
 bool audio_online = false;
-uint8_t volume = 20; // TODO: Store in config and restore.
+uint8_t volume = 10; // TODO: Store in config and restore.
 uint8_t folder = 1;  // Assuming all files are in folder "01".
 
 // Initialize the MP3 audio playback device using a dedicated serial port.
@@ -26,33 +28,44 @@ uint8_t folder = 1;  // Assuming all files are in folder "01".
 // if it is still working on an audio file.
 bool init_audio_player(int volume)
 {
+  bool initialized = false;
+  uint8_t retries = 0;
+
   // Open serial port to DFPlayer device at 9600 baud
-  //HWSerial1.begin(9600, SERIAL_8N1, MP3_RX_PIN, MP3_TX_PIN);
   MP3SER.begin(9600, SERIAL_8N1, MP3_RX_PIN, MP3_TX_PIN);
 
-  delay(1000);
-  io_printf("Initializing DFRobot DFPlayer...");
-
-  #ifdef USE_MP3_BUSY_PIN
+#ifdef USE_MP3_BUSY_PIN
   // Configure MP3 Busy monitoring pin at GPIO input
   pinMode(MP3_BUSY_PIN, INPUT_PULLUP);
-  #endif
+#endif
 
-  // Activate the audio player interface
-  //if (!myDFPlayer.begin(HWSerial1, true, true))
-  if (!myDFPlayer.begin(MP3SER, true, true))
-  { // Use Acks, Hard reset (false=fewer pops)
+  while (!initialized && (retries < 3))
+  {
+    io_printf("Initializing DFRobot DFPlayer interface...");
+    if (!myDFPlayer.begin(MP3SER, true, false))
+    {
+      retries++;
+      delay(3000);
+    }
+    else
+    {
+      initialized = true;
+      // Select the SD card for playback
+      myDFPlayer.outputDevice(DFPLAYER_DEVICE_SD);  // <- select TF/SD
+      delay(200);
+    }
+  }
+
+  if (!initialized)
+  {
     return false;
   }
-  else
-  {
-    myDFPlayer.setTimeOut(500); // Set serial communictaion time out
-    delay(30);
 
-    myDFPlayer.volume(volume); // Set volume between 0 and 30.
-    delay(30);
-  }
+  myDFPlayer.volume(volume); // Set volume between 0 and 30.
+  delay(100);
+
   return true;
+
 }
 
 void printAudioDetail(uint8_t type, int value)
@@ -175,11 +188,6 @@ static void AudioTask(void *)
     io_printf("DFPlayer Mini online.\n");
   }
 
-  if (myDFPlayer.available())
-  {
-    printAudioDetail(myDFPlayer.readType(), myDFPlayer.read());
-  }
-
   for (;;)
   {
 
@@ -229,11 +237,11 @@ static void AudioTask(void *)
       }
     }
 
-    if (myDFPlayer.available())
-    {
-      io_printf("AUDIO RX>>> ");
-      printAudioDetail(myDFPlayer.readType(), myDFPlayer.read());
-    }
+    // if (myDFPlayer.available())
+    // {
+    //   io_printf("AUDIO RX>>> ");
+    //   printAudioDetail(myDFPlayer.readType(), myDFPlayer.read());
+    // }
 
     vTaskDelay(pdMS_TO_TICKS(1));
   }

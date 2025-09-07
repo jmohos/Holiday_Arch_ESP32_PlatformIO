@@ -12,7 +12,7 @@
 #define NUM_LEDS 150                  /* 300 split in the middle per arch */
 #define LED_TYPE WS2815 /* WS2812B */ /* WS2811 */
 #define COLOR_ORDER RGB /* GRB */     /* RGB */
-#define LED_BRIGHTNESS_DEFAULT 250    /* 128 */
+#define LED_BRIGHTNESS_DEFAULT 128    /* 128  = nominal, 255 = max */
 #define LIGHT_FPS_DEFAULT 60
 
 // ---------- Module state ----------
