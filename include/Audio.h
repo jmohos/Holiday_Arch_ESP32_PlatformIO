@@ -9,8 +9,12 @@ enum class AudioAnim : uint8_t {
   THREE = 3,    // 
   FOUR = 4,     // 
   FIVE = 5,     // 
-  THERAMIN = 6, // 
-  THUNDER = 7,  // 
+  EMPTY6 = 6,   //
+  EMPTY7 = 7,   //
+  EMPTY8 = 8,   //
+  EMPTY9 = 9,   //
+  FIRE = 10,    // 
+  THUNDER = 11,  //
   COUNT         // Must be last 
 };
 static constexpr uint8_t NUM_AUDIO_ANIMATIONS = static_cast<uint8_t>(AudioAnim::COUNT);

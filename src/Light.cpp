@@ -4,12 +4,19 @@
 #include "CommandQueues.h"
 #include "IoSync.h"
 #include "Light.h"
+#include "LightningBolt.h"
 #include "Logging.h"
 #include "Pins.h"
 
 // Addressable LED light strip config.
 #define LED_PIN RGB_LED_DATA_PIN
-#define NUM_LEDS 150                  /* 300 split in the middle per arch */
+#define NUM_LEDS 300
+#define NUM_LEDS_ARCH_R 150
+#define NUM_LEDS_ARCH_L 150
+#define ARCH_R_START 0
+#define ARCH_R_END 149
+#define ARCH_L_START 150
+#define ARCH_L_END 299
 #define LED_TYPE WS2815 /* WS2812B */ /* WS2811 */
 #define COLOR_ORDER RGB /* GRB */     /* RGB */
 #define LED_BRIGHTNESS_DEFAULT 128    /* 128  = nominal, 255 = max */
@@ -38,19 +45,132 @@ void light_set_fps(uint16_t fps)
   g_targetFps = (fps == 0) ? 1 : fps;
 }
 
-// ---------- Flame Settings ----------
+
+// ---------- Lightning Bolt Animation ----------
+LightningBolt<NUM_LEDS_ARCH_R> lightning;
+
+
+// ---------- Flame Animation ----------
 
 // COOLING: How much does the air cool as it rises?
 // Less cooling = taller flames.  More cooling = shorter flames.
 // Default 50, suggested range 20-100
-#define COOLING 65
+#define COOLING 85
 
 // SPARKING: What chance (out of 255) is there that a new spark will be lit?
 // Higher chance = more roaring fire.  Lower chance = more flickery fire.
 // Default 120, suggested range 50-200.
-#define SPARKING 85
+#define SPARKING 75
 
-#define REVERSE_FIRE false
+// ---------- Blank Animation ----------
+
+static void anim_blank(bool reset)
+{
+  // Regardless of reset, we always clear the LEDS.
+  FastLED.clear(true);
+}
+
+
+// ---------- Flame Animation ----------
+//
+// FLAMES: classic FastLED fire (1D).
+// Based on Fire2012 in Fastled library.
+// Flames are animated twice, once for each half of the arch.
+// Right side is pixels 0+.
+// Left side is revesed with the base as the last pixel in the strip.
+static void anim_flames(bool reset)
+{
+  static uint8_t heat[NUM_LEDS];
+
+  if (reset)
+  {
+    memset(heat, 0, sizeof(heat));
+    fill_solid(g_leds, NUM_LEDS, CRGB::Black);
+  }
+
+  // Two flame patterns split half way between strip.
+  // First half is 0-NUM_LEDS/2 in normal order.
+  // Second half is NUM_LEDS/2 to NUM_LEDS in reversed order.
+
+  // Step 1A.  Cool down every Right cell a little
+  for (int i = ARCH_R_START; i <= ARCH_R_END; i++)
+  {
+    heat[i] = qsub8(heat[i], random8(0, ((COOLING * 10) / NUM_LEDS_ARCH_R) + 2));
+  }
+
+  // Step 1B.  Cool down every Left cell a little
+  for (int i = ARCH_L_START; i <= ARCH_L_END; i++)
+  {
+    heat[i] = qsub8(heat[i], random8(0, ((COOLING * 10) / NUM_LEDS_ARCH_L) + 2));
+  }
+
+  // Step 2A.  Right arch heat drift and diffusion
+  for (int k = ARCH_R_END; k >= ARCH_R_START + 2; k--)
+  {
+    heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3;
+  }
+
+  // Step 2B.  Left arch heat drift and diffusion
+  for (int k = ARCH_L_END; k >= ARCH_L_START + 2; k--)
+  {
+    heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3;
+  }
+
+  // Step 3A.  Right random 'spark' in first 7 positions.
+  if (random8() < SPARKING)
+  {
+    int y = random8(7);
+    heat[ARCH_R_START + y] = qadd8(heat[y], random8(160, 255));
+  }
+
+  // Step 3B.  Left random 'spark' in first 7 positions.
+  if (random8() < SPARKING)
+  {
+    int y = random8(7);
+    heat[ARCH_L_START + y] = qadd8(heat[y], random8(160, 255));
+  }
+
+  // Step 4A.  Map Right segment in normal order to heat colors.
+  for (int j = 0; j < NUM_LEDS_ARCH_R; j++)
+  {
+    CRGB color = HeatColor(heat[ARCH_R_START + j]);
+    int pixelnumber;
+    // Map in normal order.
+    pixelnumber = ARCH_R_START + j;
+    g_leds[pixelnumber] = color;
+  }
+
+  // Step 4B.  Map Left segment in normal order to heat colors.
+  for (int j = 0; j < NUM_LEDS_ARCH_L; j++)
+  {
+    CRGB color = HeatColor(heat[ARCH_L_START + j]);
+    int pixelnumber;
+    // Map in reverse order.
+    pixelnumber = ARCH_L_END - j;
+    g_leds[pixelnumber] = color;
+  }
+}
+
+
+// ---------- Lightning Bolt Animation ----------
+//
+// Lightning effect (1D vertical strip: index 0 = ground, NUM_LEDS-1 = sky)
+// We are going to duplicate the effect on both halves of the arch.
+
+static void anim_lightning_bolts(bool reset)
+{
+  lightning.update(reset);     // render one arch's worth
+  lightning.blitTo(g_leds, NUM_LEDS_ARCH_R); // copy into the right arch
+
+  // Copy the right arch into the left
+  for (int j = 0; j < NUM_LEDS_ARCH_R; j++)
+  {
+    g_leds[ARCH_L_END - j] = g_leds[j];
+  }
+
+}
+
+
 
 // CANDYCANE: moving red/white stripes.
 static void anim_candycane(bool reset)
@@ -74,53 +194,6 @@ static void anim_candycane(bool reset)
   }
 }
 
-// FLAMES: classic FastLED fire (1D).
-// Based on Fire2012 in Fastled library.
-static void anim_flames(bool reset)
-{
-  static uint8_t heat[NUM_LEDS];
-
-  if (reset)
-  {
-    memset(heat, 0, sizeof(heat));
-    fill_solid(g_leds, NUM_LEDS, CRGB::Black);
-  }
-
-  // Step 1.  Cool down every cell a little
-  for (int i = 0; i < NUM_LEDS; i++)
-  {
-    heat[i] = qsub8(heat[i], random8(0, ((COOLING * 10) / NUM_LEDS) + 2));
-  }
-
-  // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-  for (int k = NUM_LEDS - 1; k >= 2; k--)
-  {
-    heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3;
-  }
-
-  // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
-  if (random8() < SPARKING)
-  {
-    int y = random8(7);
-    heat[y] = qadd8(heat[y], random8(160, 255));
-  }
-
-  // Step 4.  Map from heat cells to LED colors
-  for (int j = 0; j < NUM_LEDS; j++)
-  {
-    CRGB color = HeatColor(heat[j]);
-    int pixelnumber;
-    if (REVERSE_FIRE)
-    {
-      pixelnumber = (NUM_LEDS - 1) - j;
-    }
-    else
-    {
-      pixelnumber = j;
-    }
-    g_leds[pixelnumber] = color;
-  }
-}
 
 // BOUNCE: single bright pixel bouncing back & forth with fading trail.
 static void anim_bounce(bool reset)
@@ -154,9 +227,9 @@ static void anim_bounce(bool reset)
   }
 }
 
-// Dispatch table
+// Dispatch table, must match mapping in Light.h for animations.
 typedef void (*AnimFn)(bool reset);
-static AnimFn kAnims[NUM_LIGHT_ANIMATIONS] = {anim_candycane, anim_flames, anim_bounce};
+static AnimFn kAnims[NUM_LIGHT_ANIMATIONS] = {anim_blank, anim_candycane, anim_flames, anim_bounce, anim_lightning_bolts};
 
 // Master LightTask
 //
@@ -248,6 +321,7 @@ static bool light_hw_init_once()
   FastLED.setBrightness(g_brightness);
   // Optional: color correction to taste
   FastLED.setCorrection(TypicalLEDStrip);
+  FastLED.show();
 
   inited = true;
   return true;

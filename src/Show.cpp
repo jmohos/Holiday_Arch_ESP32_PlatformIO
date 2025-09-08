@@ -15,16 +15,12 @@
 
 // Animation Profiles
 const AnimationStep idleShow[] = {
-    { 15000, LightAnim::FLAMES, AudioAnim::THERAMIN, MotorAnim::HOME },
+    { 40000, LightAnim::FLAMES, AudioAnim::FIRE, MotorAnim::HOME },
 };
 const uint8_t IDLE_SHOW_LENGTH = sizeof(idleShow) / sizeof(AnimationStep);
 
 const AnimationStep localShow[] = {
-    { 4000, LightAnim::CANDYCANE,   AudioAnim::THUNDER,  MotorAnim::JIGGLE },
-    { 1000, LightAnim::CANDYCANE,    AudioAnim::ONE,     MotorAnim::JIGGLE },
-    { 1000, LightAnim::CANDYCANE,    AudioAnim::TWO,     MotorAnim::JIGGLE },
-    { 1000, LightAnim::CANDYCANE,    AudioAnim::THREE,   MotorAnim::JIGGLE },
-    { 1000, LightAnim::CANDYCANE,    AudioAnim::FOUR,    MotorAnim::JIGGLE }
+    { 4000, LightAnim::LIGHTNING,   AudioAnim::THUNDER,  MotorAnim::JIGGLE },
 };
 const uint8_t LOCAL_SHOW_LENGTH = sizeof(localShow) / sizeof(AnimationStep);
 
