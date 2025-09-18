@@ -14,6 +14,18 @@
 #include "SettingsStore.h"
 #include "Show.h"
 
+#if defined(ESP32C3_BOARD)  
+#define CORE_WORK 0
+#define CORE_WIFI 0
+#elif defined(ESP32C6_BOARD)
+#define CORE_WORK 0
+#define CORE_WIFI 0
+#elif defined(ESP32S3_BOARD)
+#define CORE_WORK 1
+#define CORE_WIFI 1
+
+#endif
+
 
 static const char* TAG_BOOT = "BOOT";
 
@@ -159,7 +171,7 @@ void setup() {
     networkService,
     5 /*prio*/,
     nullptr,
-    0 /*core0*/);
+    CORE_WIFI /*core*/);
   if (ok == pdPASS) {
     ESP_LOGI(TAG_BOOT, "Network task started.");
   } else {
@@ -172,7 +184,7 @@ void setup() {
     8, /* Queue Length */
     2, /* Priority */
     4096, /* Stack Bytes */
-    0 /* Core */ ))
+    CORE_WORK /* Core */ ))
   {
     FAULT_SET(FAULT_CONSOLE_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start console task!");
@@ -184,7 +196,7 @@ void setup() {
   if (!command_exec_start(
     2, /* Priority */
     4096, /* Stack Bytes */
-    0 /* Core */))
+    CORE_WORK /* Core */))
   {
     FAULT_SET(FAULT_CMD_EXEC_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start command executor task!");
@@ -196,7 +208,7 @@ void setup() {
   if (!audio_start(
     configMAX_PRIORITIES - 1, /* Priority */
     4096, /* Stack Bytes */
-    0 /* Core */ ))
+    CORE_WORK /* Core */ ))
   {
     FAULT_SET(FAULT_AUDIO_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start audio task!");
@@ -208,7 +220,7 @@ void setup() {
   if (!light_start(
     configMAX_PRIORITIES - 1, /* Priority */
     4096, /* Stack Bytes */
-    0 /* Core */ ))
+    CORE_WORK /* Core */ ))
   {
     FAULT_SET(FAULT_LIGHT_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start light task!");
@@ -220,7 +232,7 @@ void setup() {
   if (!motor_start(
     configMAX_PRIORITIES - 1, /* Priority */
     4096, /* Stack Bytes */
-    1 /* Core */ ))
+    CORE_WORK /* Core */ ))
   {
     FAULT_SET(FAULT_MOTOR_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start motor task!");
@@ -232,7 +244,7 @@ void setup() {
   if (!prox_detect_start(
     configMAX_PRIORITIES - 1, /* Priority */
     4096, /* Stack Bytes */
-    0 /* Core */ ))
+    CORE_WORK /* Core */ ))
   {
     FAULT_SET(FAULT_PROX_DETECT_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start proximity detection task!");
@@ -244,7 +256,7 @@ void setup() {
   if (!show_start(
     configMAX_PRIORITIES - 1, /* Priority */
     8192, /* Stack Bytes */
-    0 /* Core */ ))
+    CORE_WORK /* Core */ ))
   {
     FAULT_SET(FAULT_SHOW_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start show task!");

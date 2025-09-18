@@ -5,6 +5,7 @@
 #include "Motor.h"
 #include "Pins.h"
 
+#if defined(ESP32C3_BOARD)
 // Servo management library.
 //  From Dlloydev/ESP32-ESP32S2-AnalogWrite
 //  Example: https://github.com/Dlloydev/ESP32-ESP32S2-AnalogWrite/blob/main/examples
@@ -12,6 +13,7 @@
 
 // Servo manager
 Servo myservo = Servo(); /* Supports 0-180 degrees */
+#endif
 
 static bool g_playing = false;
 static uint8_t g_animIndex = static_cast<uint8_t>(MotorAnim::HOME);
@@ -39,8 +41,10 @@ static constexpr uint32_t hammer_delays[NUM_HAMMER_STEPS] = {500, 500, 500, 500}
 // Force the motors to their idle position immediately.
 void motor_idle()
 {
+#if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, HOME_ANGLE);
   myservo.write(SERVO_1_PIN, HOME_ANGLE);
+#endif
 }
 
 // Motor animation routine to home
@@ -59,8 +63,10 @@ static void anim_motor_home(bool reset)
   const uint32_t t = now_ms() - t0;
 
   // TODO: Ramp positions to home position
+#if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, HOME_ANGLE, speed, ke);
   myservo.write(SERVO_2_PIN, HOME_ANGLE, speed, ke);
+#endif
 }
 
 // Motor animation routine to jiggle
@@ -86,8 +92,10 @@ static void anim_motor_jiggle(bool reset)
   }
 
   // Update the servos often to support the ramping in between changes.
+#if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, jiggle_positions[index], speed, ke);
   myservo.write(SERVO_2_PIN, jiggle_positions[index], speed, ke);
+#endif
 
   if (!in_delay)
   {
@@ -128,8 +136,10 @@ static void anim_motor_hammer(bool reset)
   }
 
   // Update the servos often to support the ramping in between changes.
+#if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, hammer_positions[index], speed, ke);
   myservo.write(SERVO_2_PIN, hammer_positions[index], speed, ke);
+#endif
 
   if (!in_delay)
   {
@@ -196,8 +206,10 @@ static void MotorTask(void *)
         g_playing = false;
         g_animReset = true; // ensure clean start next time
 
+#if defined(ESP32C3_BOARD)  
         myservo.write(SERVO_1_PIN, HOME_ANGLE);
         myservo.write(SERVO_1_PIN, HOME_ANGLE);
+#endif
         break;
       }
 
