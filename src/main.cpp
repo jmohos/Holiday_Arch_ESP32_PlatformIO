@@ -214,6 +214,9 @@ void setup() {
     ESP_LOGE(TAG_BOOT, "Failed to start audio task!");
   } else {
     ESP_LOGI(TAG_BOOT, "Audio task started.");
+
+    // Set the audio from the config.
+    set_volume(settingsConfig.volume());
   }
 
   // Start the light animation task.

@@ -49,8 +49,9 @@ static void CommandExecTask(void*) {
             // "cfg show"
             io_printf("Configuration Contents:\n");
             io_printf(" device id: %u\n", settingsConfig.deviceId());
-            io_printf(" WiFi SSID: >%s< Len: %u\n", settingsConfig.ssid().c_str(), settingsConfig.ssid().length());
-            io_printf(" WiFi pass: >%s< Len: %u\n", settingsConfig.password().c_str(), settingsConfig.password().length());
+            io_printf(" WiFi SSID: \"%s\" Len: %u\n", settingsConfig.ssid().c_str(), settingsConfig.ssid().length());
+            io_printf(" WiFi pass: \"%s\" Len: %u\n", settingsConfig.password().c_str(), settingsConfig.password().length());
+            io_printf(" volume:    %u\n", settingsConfig.volume());
           }
           else if (!strcasecmp(arg1, "set")) {
             // We need two arguments after set.
@@ -200,6 +201,8 @@ static void CommandExecTask(void*) {
           if (arg_as_int(msg, 1, volume)) {
             io_printf("Queued up audio volume %d\n", volume);
             SendAudioQueue( AudioCmdQueueMsg{ AudioQueueCmd::Volume, static_cast<unsigned char>(volume) } );
+            // Save the value in the config table.
+            settingsConfig.setVolume(volume);
           } else {
             io_printf("Error, invalid volume!");  
           }

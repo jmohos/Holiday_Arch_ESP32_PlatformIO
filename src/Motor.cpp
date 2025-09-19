@@ -13,6 +13,12 @@
 
 // Servo manager
 Servo myservo = Servo(); /* Supports 0-180 degrees */
+
+#elif defined(ESP32C6_BOARD)
+// Servo management header class.
+#include "SmoothServos.h"
+
+SmoothServos servos(2);
 #endif
 
 static bool g_playing = false;
@@ -38,12 +44,51 @@ static constexpr uint16_t NUM_HAMMER_STEPS = 8;
 static constexpr float hammer_positions[NUM_HAMMER_STEPS] = {180.0, 0.0, 120.0, 40.0};
 static constexpr uint32_t hammer_delays[NUM_HAMMER_STEPS] = {500, 500, 500, 500};
 
+
+void config_servos() {
+#if defined(ESP32C6_BOARD)
+  ServoConfig cfgs[2];
+  cfgs[0] = {
+    .pin = SERVO_1_PIN,
+    .minUs = 600,
+    .maxUs = 2400,
+    .invert = false,
+    .maxDegPerSec = 120,       // limit speed to tame spikes
+    .maxAccelDegPerSec2 = 400, // optional accel shaping
+    .deadbandDeg = 0.5f
+  };
+  cfgs[1] = {
+    .pin = SERVO_2_PIN,
+    .minUs = 600,
+    .maxUs = 2400,
+    .invert = false,
+    .maxDegPerSec = 90,
+    .maxAccelDegPerSec2 = 300,
+    .deadbandDeg = 0.5f
+  };
+
+  if (!servos.begin(cfgs, 2, /*periodHz=*/50)) {
+    Serial.println("Servo init failed (pin or LEDC channel issue).");
+    while (true) delay(1000);
+  }
+
+  // Start positions
+  servos.snapTo(0, 90);
+  servos.snapTo(1, 90);
+
+#endif
+}
+
+
 // Force the motors to their idle position immediately.
 void motor_idle()
 {
 #if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, HOME_ANGLE);
   myservo.write(SERVO_1_PIN, HOME_ANGLE);
+#elif defined(ESP32C6_BOARD)
+  servos.snapTo(0, HOME_ANGLE);
+  servos.snapTo(1, HOME_ANGLE);
 #endif
 }
 
@@ -66,6 +111,9 @@ static void anim_motor_home(bool reset)
 #if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, HOME_ANGLE, speed, ke);
   myservo.write(SERVO_2_PIN, HOME_ANGLE, speed, ke);
+#elif defined(ESP32C6_BOARD)
+  servos.snapTo(0, HOME_ANGLE);
+  servos.snapTo(1, HOME_ANGLE);  
 #endif
 }
 
@@ -95,6 +143,9 @@ static void anim_motor_jiggle(bool reset)
 #if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, jiggle_positions[index], speed, ke);
   myservo.write(SERVO_2_PIN, jiggle_positions[index], speed, ke);
+#elif defined(ESP32C6_BOARD)
+  servos.snapTo(0, jiggle_positions[index]);
+  servos.snapTo(1, jiggle_positions[index]);    
 #endif
 
   if (!in_delay)
@@ -139,6 +190,9 @@ static void anim_motor_hammer(bool reset)
 #if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, hammer_positions[index], speed, ke);
   myservo.write(SERVO_2_PIN, hammer_positions[index], speed, ke);
+#elif defined(ESP32C6_BOARD)
+  servos.snapTo(0, hammer_positions[index]);
+  servos.snapTo(1, hammer_positions[index]);   
 #endif
 
   if (!in_delay)
@@ -166,6 +220,8 @@ static void MotorTask(void *)
   MotorCmdQueueMsg msg{};
   const TickType_t frameTicks = pdMS_TO_TICKS(1000UL / g_targetFps);
   TickType_t lastWake = xTaskGetTickCount();
+
+  config_servos();
 
   // Setup the timer and PWM outputs for hobby servo compliant patterns.
   motor_idle();
@@ -209,6 +265,9 @@ static void MotorTask(void *)
 #if defined(ESP32C3_BOARD)  
         myservo.write(SERVO_1_PIN, HOME_ANGLE);
         myservo.write(SERVO_1_PIN, HOME_ANGLE);
+#elif defined(ESP32C6_BOARD)
+        servos.snapTo(0, HOME_ANGLE);
+        servos.snapTo(1, HOME_ANGLE);           
 #endif
         break;
       }
@@ -239,6 +298,8 @@ static void MotorTask(void *)
     vTaskDelayUntil(&lastWake, frameTicks);
   }
 }
+
+
 
 bool motor_start(UBaseType_t priority, uint32_t stack_bytes, BaseType_t core)
 {

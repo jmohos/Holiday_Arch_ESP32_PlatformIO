@@ -25,7 +25,7 @@ static constexpr uint8_t NUM_AUDIO_ANIMATIONS = static_cast<uint8_t>(AudioAnim::
 // Returns: true on success, false on failure.
 bool audio_start(UBaseType_t priority = 2,
                 uint32_t stack_bytes = 4096,
-                BaseType_t core = 1);
+                BaseType_t core = 0);
 
 // Halts any audio playback.
 void stop_audio_player();

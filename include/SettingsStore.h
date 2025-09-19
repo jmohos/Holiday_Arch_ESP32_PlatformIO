@@ -25,7 +25,8 @@ public:
     uint8_t  _pad0;           // keep alignment stable
     char     ssid[kMaxSsid];  // null-terminated
     char     pwd[kMaxPwd];    // null-terminated
-    uint8_t  reserved[64];    // future use; must be zeroed
+    uint8_t  volume;          // 0-30
+    uint8_t  reserved[63];    // future use; must be zeroed
     uint32_t crc32;           // CRC32 of [magic..reserved]
   };
 
@@ -84,6 +85,9 @@ public:
     //blob_.ssid[0] = '\0';    // blank SSID
     //blob_.pwd[0]  = '\0';    // blank password
 
+    // Preset the volume
+    blob_.volume = 20;
+
     // reserved[] already zero
     blob_.crc32   = crc32Of(blob_); // keep consistent even before save
   }
@@ -92,6 +96,7 @@ public:
   uint8_t deviceId() const { return blob_.deviceId; }
   String  ssid()     const { return String(blob_.ssid); }
   String  password() const { return String(blob_.pwd);  }
+  uint8_t volume()   const { return blob_.volume; }
 
   void setDeviceId(uint8_t id) {
     if (id <= 0xFE) blob_.deviceId = id;   // 0..254
@@ -99,103 +104,12 @@ public:
   void setSsid(const String& s)  { copyCString(s, blob_.ssid, sizeof(blob_.ssid)); }
   void setPassword(const String& p) { copyCString(p, blob_.pwd, sizeof(blob_.pwd)); }
 
-//   // ---- Utilities ----
-//   // Pretty-print settings (password masked unless showPass=true)
-//   void printLog(bool showPass = false) const {
-//   LOGI("CFG", "v%u  magic=0x%08lX  valid=%s",
-//        (unsigned)blob_.version,
-//        (unsigned long)blob_.magic,
-//        isValid(blob_) ? "YES" : "NO");
-
-//   LOGI("CFG", "deviceId: %u", blob_.deviceId);
-//   LOGI("CFG", "ssid: \"%s\"", blob_.ssid);
-
-//   if (showPass) {
-//     LOGI("CFG", "pass: \"%s\"", blob_.pwd);
-//   } else {
-//     size_t L = strnlen(blob_.pwd, sizeof(blob_.pwd));
-//     LOGI("CFG", "pass: (%u chars) ********", (unsigned)L);
-//   }
-// }
-
-// // --- Logger-based help ---
-// void printHelpLog() const {
-//   LOGI("CFG", "cfg commands:");
-//   LOGI("CFG", "  cfg show [pass]     - show current settings");
-//   LOGI("CFG", "  cfg id <0..254>     - set device id");
-//   LOGI("CFG", "  cfg ssid <name>     - set WiFi SSID");
-//   LOGI("CFG", "  cfg pass <password> - set WiFi password");
-//   LOGI("CFG", "  cfg save            - save to NVS");
-//   LOGI("CFG", "  cfg load            - load from NVS (or defaults if invalid)");
-//   LOGI("CFG", "  cfg defaults        - load defaults (not saved)");
-// }
-
-// bool handleConsoleCommand(String line) {
-//   line.trim();
-//   if (!line.startsWith("cfg")) return false;
-
-//   line.remove(0, 3);
-//   line.trim();
-
-//   if (line.length() == 0 || line.equalsIgnoreCase("help")) {
-//     printHelpLog();
-//     return true;
-//   }
-
-//   String cmd = token(line);
-//   line = rest(line);
-
-//   if (cmd.equalsIgnoreCase("show")) {
-//     bool showPass = line.equalsIgnoreCase("pass");
-//     printLog(showPass);
-//     return true;
-
-//   } else if (cmd.equalsIgnoreCase("id")) {
-//     if (line.length() == 0) { LOGW("CFG", "usage: cfg id <0..254>"); return true; }
-//     int v = line.toInt();
-//     if (v < 0 || v > 254) { LOGE("CFG", "id must be 0..254"); return true; }
-//     setDeviceId((uint8_t)v);
-//     LOGI("CFG", "deviceId set to %d", v);
-//     return true;
-
-//   } else if (cmd.equalsIgnoreCase("ssid")) {
-//     if (line.length() == 0) { LOGW("CFG", "usage: cfg ssid <name>"); return true; }
-//     setSsid(line);
-//     LOGI("CFG", "ssid set to \"%s\"", line.c_str());
-//     return true;
-
-//   } else if (cmd.equalsIgnoreCase("pass")) {
-//     if (line.length() == 0) { LOGW("CFG", "usage: cfg pass <password>"); return true; }
-//     setPassword(line);
-//     LOGI("CFG", "password set (hidden)");
-//     return true;
-
-//   } else if (cmd.equalsIgnoreCase("save")) {
-//     if (save()) LOGI("CFG", "saved.");
-//     else        LOGE("CFG", "save FAILED.");
-//     return true;
-
-//   } else if (cmd.equalsIgnoreCase("load")) {
-//     if (load()) {
-//       LOGI("CFG", "loaded.");
-//     } else {
-//       LOGW("CFG", "load invalid -> defaults applied, saving...");
-//       setDefaults();
-//       save();
-//     }
-//     return true;
-
-//   } else if (cmd.equalsIgnoreCase("defaults")) {
-//     setDefaults();
-//     LOGI("CFG", "defaults loaded (not saved yet).");
-//     return true;
-
-//   } else {
-//     LOGW("CFG", "unknown cfg command; try: cfg help");
-//     return true;
-//   }
-// }
-
+  void setVolume(uint8_t vol) {
+    if (vol > 30) {
+      blob_.volume = 30;
+    } else {
+      blob_.volume = vol; }
+  }
 
   // Access underlying blob if needed
   const Blob& blob() const { return blob_; }
@@ -246,30 +160,6 @@ private:
     // (reserved is expected to be already zero)
     b.crc32 = crc32Of(b);
   }
-
-  // static void printHelp(Stream& out) {
-  //   out.println("cfg commands:");
-  //   out.println("  cfg show [pass]     - show current settings");
-  //   out.println("  cfg id <0..254>     - set device id");
-  //   out.println("  cfg ssid <name>     - set WiFi SSID");
-  //   out.println("  cfg pass <password> - set WiFi password");
-  //   out.println("  cfg save            - save to NVS");
-  //   out.println("  cfg load            - load from NVS (or defaults if invalid)");
-  //   out.println("  cfg defaults        - load defaults (not saved)");
-  // }
-
-  // // simple tokenizers
-  // static String token(const String& s) {
-  //   int sp = s.indexOf(' ');
-  //   return sp < 0 ? s : s.substring(0, sp);
-  // }
-  // static String rest(const String& s) {
-  //   int sp = s.indexOf(' ');
-  //   if (sp < 0) return String();
-  //   String r = s.substring(sp + 1);
-  //   r.trim();
-  //   return r;
-  // }
 
 private:
   Preferences prefs_;
