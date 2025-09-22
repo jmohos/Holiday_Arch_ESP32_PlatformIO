@@ -9,6 +9,7 @@
 #include "Logging.h"
 #include "Motor.h"
 #include "NetService.h"
+#include "ota.h"
 #include "Protocol.h"
 #include "ProxDetect.h"
 #include "SettingsStore.h"
@@ -267,6 +268,17 @@ void setup() {
     ESP_LOGI(TAG_BOOT, "Show task started.");
   }
 
+  // Start the Over-The-Air updater task.
+  if (!ota_start(
+    configMAX_PRIORITIES - 1, /* Priority */
+    8192, /* Stack Bytes */
+    CORE_WORK /* Core */ ))
+  {
+    FAULT_SET(FAULT_OTA_TASK_FAULT);
+    ESP_LOGE(TAG_BOOT, "Failed to start the OTA task!");
+  } else {
+    ESP_LOGI(TAG_BOOT, "OTA task started.");
+  }
 }
 
 // Background task
