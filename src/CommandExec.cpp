@@ -134,6 +134,7 @@ static void CommandExecTask(void*) {
             io_printf("  GW: %s\n", networkService->gatewayIP().c_str());
             io_printf("  Subnet: %s\n", networkService->subnetMask().c_str());
             io_printf("  BSSID: %s\n", networkService->bssid().c_str());
+            io_printf("  MACADDR: %s\n", networkService->macaddr().c_str());
             io_printf("  Chan: %u\n", networkService->channel());
             io_printf("  RSSI: %d dBm\n", networkService->rssi());
             io_printf("  McastIP: %s\n", networkService->mcastIP().c_str());

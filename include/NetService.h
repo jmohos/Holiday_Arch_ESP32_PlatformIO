@@ -63,6 +63,7 @@ public:
   String      subnetMask() const { return WiFi.subnetMask().toString(); }
   String      ssid() const { return WiFi.SSID(); }
   String      bssid() const { return WiFi.BSSIDstr(); }
+  String      macaddr() const { return WiFi.macAddress(); }
   int8_t      rssi() const { return WiFi.RSSI(); }
   int32_t     channel() const { return WiFi.channel(); }
   String      mcastIP() const { return mcast_.toString(); }
