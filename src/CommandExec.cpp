@@ -7,6 +7,7 @@
 #include "Logging.h"
 #include "main.h"
 #include "NetService.h"
+#include "ProxDetect.h"
 #include "SettingsStore.h"
 
 
@@ -40,6 +41,7 @@ static void CommandExecTask(void*) {
         io_printf(" motor play x    -Play audio file x.\n");
         io_printf(" motor stop      -Stop playing audio.\n");
         io_printf(" motor home      -Home the motor.\n");
+        io_printf(" range           -Latest prox detect range.\n");
 
       } else if (!strcasecmp(msg.cmd, "cfg")) {
 
@@ -286,7 +288,8 @@ static void CommandExecTask(void*) {
         } else {
           io_printf("usage: enable <on|off|true|false|1|0>\n");
         }
-
+      } else if (!strcasecmp(msg.cmd, "range")) {
+        io_printf("range: %d\n", prox_range());
       } else {
         io_printf("unknown command '%s'\n", msg.cmd);
       }

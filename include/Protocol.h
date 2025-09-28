@@ -57,10 +57,12 @@ inline size_t encodeHeader(uint8_t* out, size_t cap,
 // ---- Command-specific encoders (examples) ----
 // 0x00 Ping: no payload
 inline size_t buildPing(uint8_t* out, size_t cap, uint8_t dst, uint8_t src,
-                        int8_t rssi) {
-  if (cap < HDR_SIZE + 1) return 0;
+                        int8_t rssi, uint16_t range) {
+  if (cap < HDR_SIZE + 3) return 0;
   size_t n = encodeHeader(out, cap, dst, src, CMD_PING);
   out[n++] = rssi;
+  out[n++] = (uint8_t)(range & 0xff);
+  out[n++] = (uint8_t)((range >> 8) & 0xFF);
   return n;
 }
 

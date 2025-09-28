@@ -106,15 +106,17 @@ void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user
 
 // Network ping sender
 bool send_ping() {
-  // Ping packet has one byte with rssi.
-  uint8_t ping_packet[sizeof(Proto::Header) + 1];
+  // Ping packet has one byte for rssi and 2 for range.
+  uint8_t ping_packet[sizeof(Proto::Header) + 3];
   size_t len=0;
 
   // Grab the latest network RSSI to report connectivity status.
   int8_t rssi = networkService->rssi();
 
+  uint16_t range = prox_range();
+
   len = Proto::buildPing(ping_packet, sizeof(ping_packet), Proto::BROADCAST,
-                         settingsConfig.deviceId(), rssi);
+                         settingsConfig.deviceId(), rssi, range);
   if (len == 0) {
     ESP_LOGE("NET", "Failed to pack ping message!");
     return false;

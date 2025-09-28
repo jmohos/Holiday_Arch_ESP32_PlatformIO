@@ -10,7 +10,7 @@
 #include "ProxDetect.h"
 
 // Set update rate to no faster than the sensor sample rate. (<30fps)
-static constexpr uint16_t TOF_DETECTION_FPS = 20;
+static constexpr uint16_t TOF_DETECTION_FPS = 10; // 20;
 
 VL53L1X tof_sensor;
 bool sensor_online = false;
@@ -29,6 +29,9 @@ enum class DetectState : uint8_t { UNKNOWN = 0, FAR = 1, CLOSE = 2 };
 DetectState detectState = DetectState::UNKNOWN;
 
 
+uint16_t prox_range() {
+  return range_mm;
+}
 
 static void ProxDetectTask(void*) {
 
@@ -48,6 +51,7 @@ static void ProxDetectTask(void*) {
   if (tof_sensor.init()) {
     sensor_online = true;
 
+#ifdef OLD_CONFIG
     // You can change these settings to adjust the performance of the sensor, but
     // the minimum timing budget is 20 ms for short distance mode and 33 ms for
     // medium and long distance modes. See the VL53L1X datasheet for more
@@ -66,6 +70,12 @@ static void ProxDetectTask(void*) {
     //tof_sensor.startContinuous(50); /* Used for Long mode */
     //tof_sensor.startContinuous(33); /* Used for medium mode */
     //tof_sensor.startContinuous(25); /* Used for short mode */
+#else
+tof_sensor.setDistanceMode(VL53L1X::Short);
+tof_sensor.setMeasurementTimingBudget(50 * 1000); //us
+tof_sensor.setROISize(8,8);
+tof_sensor.startContinuous(70);
+#endif
 
   } else {
     FAULT_SET(FAULT_TOF_SENSOR_INIT_FAIL);
