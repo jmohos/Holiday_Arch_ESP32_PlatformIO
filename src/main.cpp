@@ -54,6 +54,12 @@ void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user
     return; // not for me
   }
 
+  if (v.hdr.src == settingsConfig.deviceId())
+  {
+    ESP_LOGI("NET", "[RX] Mcast Packet was from self.");
+    return; // Don't process my own messages
+  }
+  
   switch (v.hdr.cmd)
   {
     case Proto::CMD_PING:
@@ -100,10 +106,15 @@ void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user
 
 // Network ping sender
 bool send_ping() {
-  uint8_t ping_packet[sizeof(Proto::Header)];
+  // Ping packet has one byte with rssi.
+  uint8_t ping_packet[sizeof(Proto::Header) + 1];
   size_t len=0;
 
-  len = Proto::buildPing(ping_packet, sizeof(ping_packet), Proto::BROADCAST, settingsConfig.deviceId());
+  // Grab the latest network RSSI to report connectivity status.
+  int8_t rssi = networkService->rssi();
+
+  len = Proto::buildPing(ping_packet, sizeof(ping_packet), Proto::BROADCAST,
+                         settingsConfig.deviceId(), rssi);
   if (len == 0) {
     ESP_LOGE("NET", "Failed to pack ping message!");
     return false;
@@ -284,12 +295,9 @@ void setup() {
 // Background task
 void loop() {
 
+  // Report to the multicast group with network connectivity.
+  send_ping();
+  vTaskDelay(pdMS_TO_TICKS(1000));
 
-  // Keep Arduino loop empty so tasks do the work.
-  vTaskDelay(pdMS_TO_TICKS(10));
-
-  //send_ping();
-
-  //ESP_LOGD(TAG_BACKG, "Background...");
 }
 

@@ -8,6 +8,8 @@ enum class LightAnim : uint8_t {
   FLAMES = 2,    // Flames from both ends
   BOUNCE = 3,    //
   LIGHTNING = 4, // Lighting bolts
+  PORTAL_HALLOWEEN = 5, //
+  PORTAL_REDWHITE  = 6, //  
   COUNT          // Must be last
 };
 static constexpr uint8_t NUM_LIGHT_ANIMATIONS = static_cast<uint8_t>(LightAnim::COUNT);

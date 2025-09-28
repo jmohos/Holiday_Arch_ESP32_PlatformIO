@@ -8,7 +8,23 @@
 #include "Logging.h"
 #include "Pins.h"
 
+// ALITOVE_WS2815_12V_5M_STRIP:
+//    300 LED WS2815 strip, 5 meters
+//    Flat weatherstrip with no diffusers.
+//    https://www.amazon.com/dp/B07L3QD1LF?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1
+//
+// XNBADA_WS2812_12V_5M_STRIP:
+//    250 LED WS2812B strip, 5 meters
+//    360 degree silicon and nylon diffusers.
+//    https://www.amazon.com/dp/B0CRVDGMW9?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1
+
+// Uncomment only ONE of the following light strip models in use.
+//#define ALITOVE_WS2815_12V_5M_STRIP
+#define XNBADA_WS2812_12V_5M_STRIP
+
 // Addressable LED light strip config.
+#if defined(ALITOVE_WS2815_12V_5M_STRIP)
+
 #define LED_PIN RGB_LED_DATA_PIN
 #define NUM_LEDS 300
 #define NUM_LEDS_ARCH_R 150
@@ -19,8 +35,25 @@
 #define ARCH_L_END 299
 #define LED_TYPE WS2815 /* WS2812B */ /* WS2811 */
 #define COLOR_ORDER RGB /* GRB */     /* RGB */
-#define LED_BRIGHTNESS_DEFAULT 128    /* 128  = nominal, 255 = max */
+#define LED_BRIGHTNESS_DEFAULT 255    /* 128  = nominal, 255 = max */
 #define LIGHT_FPS_DEFAULT 60
+
+#elif defined (XNBADA_WS2812_12V_5M_STRIP)
+
+#define LED_PIN RGB_LED_DATA_PIN
+#define NUM_LEDS 250
+#define NUM_LEDS_ARCH_R 125
+#define NUM_LEDS_ARCH_L 125
+#define ARCH_R_START 0
+#define ARCH_R_END 124
+#define ARCH_L_START 125
+#define ARCH_L_END 249
+#define LED_TYPE WS2812B
+#define COLOR_ORDER RGB /* GRB */     /* RGB */
+#define LED_BRIGHTNESS_DEFAULT 255    /* 128  = nominal, 255 = max */
+#define LIGHT_FPS_DEFAULT 60
+
+#endif
 
 // ---------- Module state ----------
 static CRGB g_leds[NUM_LEDS];
@@ -227,9 +260,97 @@ static void anim_bounce(bool reset)
   }
 }
 
+
+// ---------- Portal (rotating stripes) ----------
+//
+// Visual idea: alternating color bands on each half of the arch.
+// To evoke "rotation," the left and right halves scroll in opposite
+// directions around the apex. Band size and speed are tunable.
+//
+// Right half is [ARCH_R_START..ARCH_R_END] increasing bottom->top.
+// Left  half is [ARCH_L_START..ARCH_L_END]   but we mirror so its
+// visual bottom->top comes from ARCH_L_END backwards.
+
+static void draw_striped_half(int start, int end, bool reverseOrder,
+                              int offset, uint8_t bandWidth,
+                              const CRGB& cA, const CRGB& cB)
+{
+  const int len = end - start + 1;
+  if (len <= 0) return;
+
+  for (int k = 0; k < len; ++k) {
+    int idx = reverseOrder ? (end - k) : (start + k);
+    // Compute which band this pixel falls into after offset
+    int band = ((k + offset) / bandWidth) & 1;
+    g_leds[idx] = band ? cA : cB;
+  }
+}
+
+static void anim_portal_core(bool reset,
+                             CRGB cA, CRGB cB,    // two alternating colors
+                             uint8_t bandWidthPx, // 3..12 is typical
+                             uint16_t msPerShift, // lower = faster
+                             int dirRight,        // +1 or -1
+                             int dirLeft)         // +1 or -1
+{
+  static uint32_t t0 = 0;
+  if (reset) {
+    t0 = now_ms();
+    fill_solid(g_leds, NUM_LEDS, CRGB::Black);
+  }
+
+  const uint32_t t = now_ms() - t0;
+  // How many pixels to shift per elapsed time
+  const int shift = (int)(t / msPerShift);
+
+  // Right half scroll
+  const int offR = (dirRight >= 0) ?  ( shift % (bandWidthPx * 2))
+                                   : ((-shift) % (bandWidthPx * 2) + (bandWidthPx * 2)) % (bandWidthPx * 2);
+
+  // Left half scroll (mirrored): draw in reverse order so bottom is at ARCH_L_END
+  const int offL = (dirLeft  >= 0) ?  ( shift % (bandWidthPx * 2))
+                                   : ((-shift) % (bandWidthPx * 2) + (bandWidthPx * 2)) % (bandWidthPx * 2);
+
+  draw_striped_half(ARCH_R_START, ARCH_R_END, /*reverse=*/false, offR, bandWidthPx, cA, cB);
+  draw_striped_half(ARCH_L_START, ARCH_L_END, /*reverse=*/true,  offL, bandWidthPx, cA, cB);
+}
+
+// Halloween portal: purple & orange, counter-rotating halves
+static void anim_portal_halloween(bool reset)
+{
+  const CRGB PURPLE(160, 0, 200);
+  const CRGB ORANGE(255, 80, 0);
+
+  // Tunables:  band ~ 6 px, fairly quick swirl, halves counter-rotate
+  anim_portal_core(reset, PURPLE, ORANGE,
+                   /*bandWidthPx=*/6,
+                   /*msPerShift=*/50,
+                   /*dirRight=*/+1,
+                   /*dirLeft=*/-1);
+}
+
+// Red/white portal (peppermint vibe), same counter-rotation
+static void anim_portal_redwhite(bool reset)
+{
+  anim_portal_core(reset, CRGB::White, CRGB(220, 0, 0),
+                   /*bandWidthPx=*/5,
+                   /*msPerShift=*/50,
+                   /*dirRight=*/+1,
+                   /*dirLeft=*/-1);
+}
+
+
 // Dispatch table, must match mapping in Light.h for animations.
 typedef void (*AnimFn)(bool reset);
-static AnimFn kAnims[NUM_LIGHT_ANIMATIONS] = {anim_blank, anim_candycane, anim_flames, anim_bounce, anim_lightning_bolts};
+static AnimFn kAnims[NUM_LIGHT_ANIMATIONS] = {
+  anim_blank, 
+  anim_candycane,
+  anim_flames,
+  anim_bounce,
+  anim_lightning_bolts,
+  anim_portal_halloween,
+  anim_portal_redwhite
+};
 
 // Master LightTask
 //

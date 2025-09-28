@@ -15,7 +15,8 @@
 
 // Animation Profiles
 const AnimationStep idleShow[] = {
-    { 40000, LightAnim::FLAMES, AudioAnim::FIRE, MotorAnim::HOME },
+    { 60000, LightAnim::PORTAL_HALLOWEEN, AudioAnim::SILENCE, MotorAnim::HOME},
+    { 60000, LightAnim::FLAMES, AudioAnim::FIRE, MotorAnim::HOME },
 };
 const uint8_t IDLE_SHOW_LENGTH = sizeof(idleShow) / sizeof(AnimationStep);
 
@@ -25,11 +26,11 @@ const AnimationStep localShow[] = {
 const uint8_t LOCAL_SHOW_LENGTH = sizeof(localShow) / sizeof(AnimationStep);
 
 const AnimationStep remoteShow[] = {
-    { 4000, LightAnim::BOUNCE,    AudioAnim::THUNDER, MotorAnim::HAMMER },
-    { 1000, LightAnim::BOUNCE,    AudioAnim::FIVE,    MotorAnim::HAMMER },
-    { 1000, LightAnim::BOUNCE,    AudioAnim::FOUR,    MotorAnim::HAMMER },
-    { 1000, LightAnim::BOUNCE,    AudioAnim::THREE,   MotorAnim::HAMMER },
-    { 1000, LightAnim::BOUNCE,    AudioAnim::TWO,     MotorAnim::HAMMER },
+    { 4000, LightAnim::LIGHTNING,    AudioAnim::THUNDER, MotorAnim::HAMMER },
+//    { 1000, LightAnim::BOUNCE,    AudioAnim::FIVE,    MotorAnim::HAMMER },
+//    { 1000, LightAnim::BOUNCE,    AudioAnim::FOUR,    MotorAnim::HAMMER },
+//    { 1000, LightAnim::BOUNCE,    AudioAnim::THREE,   MotorAnim::HAMMER },
+//    { 1000, LightAnim::BOUNCE,    AudioAnim::TWO,     MotorAnim::HAMMER },
 };
 const uint8_t REMOTE_SHOW_LENGTH = sizeof(remoteShow) / sizeof(AnimationStep);
 
@@ -39,6 +40,7 @@ const uint8_t REMOTE_SHOW_LENGTH = sizeof(remoteShow) / sizeof(AnimationStep);
 
 // 
 bool send_trigger(uint8_t animId) {
+  // Trigger message has one data byte after header.
   uint8_t frame[Proto::HDR_SIZE + 1];
   size_t len = Proto::buildTriggerAnim(
       frame,
