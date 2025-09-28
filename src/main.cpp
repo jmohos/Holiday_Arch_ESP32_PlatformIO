@@ -4,6 +4,7 @@
 #include "IoSync.h"
 #include "Console.h"
 #include "CommandExec.h"
+#include "elapsedMillis.h"
 #include "Faults.h"
 #include "Light.h"
 #include "Logging.h"
@@ -29,6 +30,11 @@
 
 
 static const char* TAG_BOOT = "BOOT";
+
+elapsedMillis time_since_last_ping_msec = 0;
+elapsedMillis time_since_last_blink_msec = 0;
+static const int PING_SEND_PERIOD = 1000;
+static const int CPU_LED_BLINK_PERIOD = 250;
 
 Persist::SettingsStore settingsConfig;
 NetService *networkService = nullptr;
@@ -182,6 +188,11 @@ void setup() {
   // Perform board specific initialization
 #if defined(ESP32C6_BOARD)
   esp32c6_use_ext_ant();
+
+  // Enable the onboard LED to indicate health
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+
 #endif
 
   // Create the network services manager
@@ -316,9 +327,17 @@ void setup() {
 // Background task
 void loop() {
 
-  // Report to the multicast group with network connectivity.
-  send_ping();
-  vTaskDelay(pdMS_TO_TICKS(1000));
+  if (time_since_last_ping_msec >= PING_SEND_PERIOD){
+    time_since_last_ping_msec = 0;
+    send_ping();
+  }
+
+  if (time_since_last_blink_msec >= CPU_LED_BLINK_PERIOD ) {
+    time_since_last_blink_msec = 0;
+#ifdef LED_BUILTIN    
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+#endif    
+  }
 
 }
 
