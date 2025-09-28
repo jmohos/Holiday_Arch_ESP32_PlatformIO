@@ -4,9 +4,14 @@
 #include "CommandQueues.h"
 #include "IoSync.h"
 #include "Light.h"
-#include "LightningBolt.h"
 #include "Logging.h"
 #include "Pins.h"
+
+// Animation sequences
+#include "LightningBolt.h"
+#include "Portal.h"
+#include "Sparkle.h"
+
 
 // ALITOVE_WS2815_12V_5M_STRIP:
 //    300 LED WS2815 strip, 5 meters
@@ -82,9 +87,13 @@ void light_set_fps(uint16_t fps)
 // ---------- Lightning Bolt Animation ----------
 LightningBolt<NUM_LEDS_ARCH_R> lightning;
 
+// ---------- Portal Animation ----------
+PortalEffect<NUM_LEDS> portal(ARCH_R_START, ARCH_R_END, ARCH_L_START, ARCH_L_END);
+
+// ---------- Sparkle Animation ----------
+SparkleOverlay<32>     sparkle; // pool size 32; adjust if you like
 
 // ---------- Flame Animation ----------
-
 // COOLING: How much does the air cool as it rises?
 // Less cooling = taller flames.  More cooling = shorter flames.
 // Default 50, suggested range 20-100
@@ -260,83 +269,49 @@ static void anim_bounce(bool reset)
   }
 }
 
-
-// ---------- Portal (rotating stripes) ----------
-//
-// Visual idea: alternating color bands on each half of the arch.
-// To evoke "rotation," the left and right halves scroll in opposite
-// directions around the apex. Band size and speed are tunable.
-//
-// Right half is [ARCH_R_START..ARCH_R_END] increasing bottom->top.
-// Left  half is [ARCH_L_START..ARCH_L_END]   but we mirror so its
-// visual bottom->top comes from ARCH_L_END backwards.
-
-static void draw_striped_half(int start, int end, bool reverseOrder,
-                              int offset, uint8_t bandWidth,
-                              const CRGB& cA, const CRGB& cB)
-{
-  const int len = end - start + 1;
-  if (len <= 0) return;
-
-  for (int k = 0; k < len; ++k) {
-    int idx = reverseOrder ? (end - k) : (start + k);
-    // Compute which band this pixel falls into after offset
-    int band = ((k + offset) / bandWidth) & 1;
-    g_leds[idx] = band ? cA : cB;
-  }
-}
-
-static void anim_portal_core(bool reset,
-                             CRGB cA, CRGB cB,    // two alternating colors
-                             uint8_t bandWidthPx, // 3..12 is typical
-                             uint16_t msPerShift, // lower = faster
-                             int dirRight,        // +1 or -1
-                             int dirLeft)         // +1 or -1
-{
-  static uint32_t t0 = 0;
-  if (reset) {
-    t0 = now_ms();
-    fill_solid(g_leds, NUM_LEDS, CRGB::Black);
-  }
-
-  const uint32_t t = now_ms() - t0;
-  // How many pixels to shift per elapsed time
-  const int shift = (int)(t / msPerShift);
-
-  // Right half scroll
-  const int offR = (dirRight >= 0) ?  ( shift % (bandWidthPx * 2))
-                                   : ((-shift) % (bandWidthPx * 2) + (bandWidthPx * 2)) % (bandWidthPx * 2);
-
-  // Left half scroll (mirrored): draw in reverse order so bottom is at ARCH_L_END
-  const int offL = (dirLeft  >= 0) ?  ( shift % (bandWidthPx * 2))
-                                   : ((-shift) % (bandWidthPx * 2) + (bandWidthPx * 2)) % (bandWidthPx * 2);
-
-  draw_striped_half(ARCH_R_START, ARCH_R_END, /*reverse=*/false, offR, bandWidthPx, cA, cB);
-  draw_striped_half(ARCH_L_START, ARCH_L_END, /*reverse=*/true,  offL, bandWidthPx, cA, cB);
-}
-
-// Halloween portal: purple & orange, counter-rotating halves
+// ---------- Portal + Sparkles Animations ----------
 static void anim_portal_halloween(bool reset)
 {
+    // Portal: purple & orange
   const CRGB PURPLE(160, 0, 200);
   const CRGB ORANGE(255, 80, 0);
+  
+  portal.setColors(PURPLE, ORANGE);
+  portal.setBandWidth(6);          // bold, readable bands
+  portal.setSpeedMsPerShift(70);   // lower = faster
+  portal.setDirection(+1);         // scroll direction
+  portal.update(reset);
+  portal.blitTo(g_leds, NUM_LEDS);
 
-  // Tunables:  band ~ 6 px, fairly quick swirl, halves counter-rotate
-  anim_portal_core(reset, PURPLE, ORANGE,
-                   /*bandWidthPx=*/6,
-                   /*msPerShift=*/50,
-                   /*dirRight=*/+1,
-                   /*dirLeft=*/-1);
+  // Uncomment to add sparkle effect
+  // // Sparkle flavor for Halloween
+  // if (reset) sparkle.reset();
+  // sparkle.setRate(10.0f);       // births/sec
+  // sparkle.setLifetime(90, 200); // ms
+  // sparkle.setIntensity(255);
+  // sparkle.setMaxActive(28);
+  // sparkle.apply(g_leds, NUM_LEDS);
 }
 
-// Red/white portal (peppermint vibe), same counter-rotation
 static void anim_portal_redwhite(bool reset)
 {
-  anim_portal_core(reset, CRGB::White, CRGB(220, 0, 0),
-                   /*bandWidthPx=*/5,
-                   /*msPerShift=*/50,
-                   /*dirRight=*/+1,
-                   /*dirLeft=*/-1);
+
+  // Portal: white & red
+  portal.setColors(CRGB::White, CRGB(220, 0, 0));
+  portal.setBandWidth(5);
+  portal.setSpeedMsPerShift(70);
+  portal.setDirs(+1, -1);
+  portal.update(reset);
+  portal.blitTo(g_leds, NUM_LEDS);
+
+  // Uncomment to add sparkle effect
+  // // Sparkle flavor (a bit lighter)
+  // if (reset) sparkle.reset();
+  // sparkle.setRate(6.0f);
+  // sparkle.setLifetime(70, 150);
+  // sparkle.setIntensity(255);
+  // sparkle.setMaxActive(20);
+  // sparkle.apply(g_leds, NUM_LEDS);
 }
 
 

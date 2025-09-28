@@ -130,6 +130,20 @@ bool send_ping() {
   return false;
 }
 
+//
+// On the Xiao ESP32C6 board the antenna source is selectable.
+// Use GPIO3 to enable the selector and GPIO14 to select between
+// the on-board antenna or the connectorized external antenna.
+// See https://wiki.seeedstudio.com/xiao_wifi_usage_esp32c6/
+//
+void esp32c6_use_ext_ant()
+{
+  pinMode(3, OUTPUT);
+  digitalWrite(3, LOW);//turn on this function
+  delay(100);
+  pinMode(14, OUTPUT); 
+  digitalWrite(14, HIGH);//use external antenna
+}
 
 // Bootup initialization.
 void setup() {
@@ -162,6 +176,11 @@ void setup() {
   } else {
     ESP_LOGI(TAG_BOOT, "Config restored.");
   }
+
+  // Perform board specific initialization
+#if defined(ESP32C6_BOARD)
+  esp32c6_use_ext_ant();
+#endif
 
   // Create the network services manager
   //TODO: Use the settingsConfig for multicast IP and Port!!!!!
