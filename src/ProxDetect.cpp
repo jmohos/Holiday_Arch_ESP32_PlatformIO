@@ -10,7 +10,7 @@
 #include "ProxDetect.h"
 
 // Set update rate to no faster than the sensor sample rate. (<30fps)
-static constexpr uint16_t TOF_DETECTION_FPS = 10; // 20;
+static constexpr uint16_t TOF_DETECTION_FPS = 15; // 20;
 
 VL53L1X tof_sensor;
 bool sensor_online = false;
@@ -51,7 +51,7 @@ static void ProxDetectTask(void*) {
   if (tof_sensor.init()) {
     sensor_online = true;
 
-#ifdef OLD_CONFIG
+#if true
     // You can change these settings to adjust the performance of the sensor, but
     // the minimum timing budget is 20 ms for short distance mode and 33 ms for
     // medium and long distance modes. See the VL53L1X datasheet for more
@@ -73,7 +73,7 @@ static void ProxDetectTask(void*) {
 #else
 tof_sensor.setDistanceMode(VL53L1X::Short);
 tof_sensor.setMeasurementTimingBudget(50 * 1000); //us
-tof_sensor.setROISize(4,4); // Very narrow beam in the center.
+tof_sensor.setROISize(8,8); // Very narrow beam in the center.
 tof_sensor.startContinuous(70);
 #endif
 
@@ -90,16 +90,13 @@ tof_sensor.startContinuous(70);
   {
     if (sensor_online) {
 
-      if (!tof_sensor.dataReady()) 
-      {
-        continue;
-      }
-
       // Blocking single read from the sensor.
-      //range_mm = tof_sensor.readSingle();
+      range_mm = tof_sensor.readSingle();
       
-      // Non-blocking read since we know data is ready
-      range_mm = tof_sensor.read(false);
+      if (range_mm == 0) {
+        io_printf("TOF max reading!\n");
+        range_mm = 2500;
+      }
 
       io_printf("mm: %d\n", range_mm);
 
