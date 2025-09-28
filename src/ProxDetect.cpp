@@ -73,7 +73,7 @@ static void ProxDetectTask(void*) {
 #else
 tof_sensor.setDistanceMode(VL53L1X::Short);
 tof_sensor.setMeasurementTimingBudget(50 * 1000); //us
-tof_sensor.setROISize(8,8);
+tof_sensor.setROISize(4,4); // Very narrow beam in the center.
 tof_sensor.startContinuous(70);
 #endif
 
@@ -90,10 +90,18 @@ tof_sensor.startContinuous(70);
   {
     if (sensor_online) {
 
-      // Blocking single read from the sensor.
-      range_mm = tof_sensor.readSingle();
+      if (!tof_sensor.dataReady()) 
+      {
+        continue;
+      }
 
-      //io_printf("mm: %d\n", range_mm);
+      // Blocking single read from the sensor.
+      //range_mm = tof_sensor.readSingle();
+      
+      // Non-blocking read since we know data is ready
+      range_mm = tof_sensor.read(false);
+
+      io_printf("mm: %d\n", range_mm);
 
       // Filter range reading to one of three zones, far, near or in between.
       if (range_mm <= DETECT_HYST_MIN_MM) {
