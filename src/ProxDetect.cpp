@@ -94,11 +94,11 @@ tof_sensor.startContinuous(70);
       range_mm = tof_sensor.readSingle();
       
       if (range_mm == 0) {
-        io_printf("TOF max reading!\n");
+        //io_printf("TOF max reading!\n");
         range_mm = 2500;
       }
 
-      io_printf("mm: %d\n", range_mm);
+      //io_printf("mm: %d\n", range_mm);
 
       // Filter range reading to one of three zones, far, near or in between.
       if (range_mm <= DETECT_HYST_MIN_MM) {
