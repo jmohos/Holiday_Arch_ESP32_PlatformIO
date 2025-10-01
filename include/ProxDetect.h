@@ -10,4 +10,4 @@ bool prox_detect_start(UBaseType_t priority = 2,
                 BaseType_t core = 1);
 
 // Return the latest range reading
-uint16_t prox_range();
+float prox_range();

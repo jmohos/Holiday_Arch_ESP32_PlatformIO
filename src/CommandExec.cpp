@@ -289,7 +289,7 @@ static void CommandExecTask(void*) {
           io_printf("usage: enable <on|off|true|false|1|0>\n");
         }
       } else if (!strcasecmp(msg.cmd, "range")) {
-        io_printf("range: %d\n", prox_range());
+        io_printf("range: %f\n", prox_range());
       } else {
         io_printf("unknown command '%s'\n", msg.cmd);
       }

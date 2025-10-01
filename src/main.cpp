@@ -119,7 +119,7 @@ bool send_ping() {
   // Grab the latest network RSSI to report connectivity status.
   int8_t rssi = networkService->rssi();
 
-  uint16_t range = prox_range();
+  uint16_t range = (int)prox_range();
 
   len = Proto::buildPing(ping_packet, sizeof(ping_packet), Proto::BROADCAST,
                          settingsConfig.deviceId(), rssi, range);
