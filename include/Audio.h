@@ -9,7 +9,7 @@ enum class AudioAnim : uint8_t {
   THREE = 3,    // 
   FOUR = 4,     // 
   FIVE = 5,     // 
-  EMPTY6 = 6,   //
+  THERAMIN = 6,   //
   EMPTY7 = 7,   //
   EMPTY8 = 8,   //
   EMPTY9 = 9,   //

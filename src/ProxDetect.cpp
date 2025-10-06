@@ -15,7 +15,7 @@
 
 // Update rate for distance readings.
 static constexpr uint16_t TOF_DETECTION_FPS = 25;
-static constexpr float MAX_RANGE = 32768.0;
+static constexpr float MAX_RANGE = 32767.0;
 
 bool sensor_online = false;
 float sensor_distance = MAX_RANGE;
@@ -124,7 +124,14 @@ static void ProxDetectTask(void *)
       // For speed, read just the distance.
       if (recJustDistance())
       {
-        range_mm = sensor_distance;
+        if (sensor_distance < 0.01) {
+          // Did not detect anyything, assume max range in this case.
+          range_mm = MAX_RANGE;
+        }
+        else 
+        {
+          range_mm = sensor_distance;
+        }
       }
       else 
       {

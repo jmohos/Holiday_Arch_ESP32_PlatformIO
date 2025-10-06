@@ -16,7 +16,7 @@
 #include "SettingsStore.h"
 #include "Show.h"
 
-#if defined(ESP32C3_BOARD)  
+#if defined(ESP32C3_BOARD)
 #define CORE_WORK 0
 #define CORE_WIFI 0
 #elif defined(ESP32C6_BOARD)
@@ -28,8 +28,7 @@
 
 #endif
 
-
-static const char* TAG_BOOT = "BOOT";
+static const char *TAG_BOOT = "BOOT";
 
 elapsedMillis time_since_last_ping_msec = 0;
 elapsedMillis time_since_last_blink_msec = 0;
@@ -47,12 +46,12 @@ void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user
   if (!Proto::parse(data, len, v))
   {
     ESP_LOGI("NET", "[RX] Malformed Mcast packet from 0x%02X",
-      v.hdr.src);
+             v.hdr.src);
     return; // bad or too short
   }
 
   ESP_LOGI("NET", "[RX] Mcast Packet from 0x%02X...",
-    v.hdr.src);
+           v.hdr.src);
 
   if (!Proto::isForMe(settingsConfig.deviceId(), v.hdr.dst))
   {
@@ -65,14 +64,14 @@ void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user
     ESP_LOGI("NET", "[RX] Mcast Packet was from self.");
     return; // Don't process my own messages
   }
-  
+
   switch (v.hdr.cmd)
   {
-    case Proto::CMD_PING:
+  case Proto::CMD_PING:
     // No payload; maybe reply or blink an LED
-    ESP_LOGI("NET", "[RX] PING from 0x%02X (%s)", 
-      v.hdr.src, 
-      from.toString().c_str());
+    ESP_LOGI("NET", "[RX] PING from 0x%02X (%s)",
+             v.hdr.src,
+             from.toString().c_str());
     break;
 
   case Proto::CMD_CHANGE_MODE:
@@ -81,9 +80,9 @@ void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user
     if (Proto::decodeChangeMode(v, mode))
     {
       ESP_LOGI("NET", "[RX] CHANGE_MODE -> %u (from 0x%02X)",
-        mode,
-        v.hdr.src);
-      
+               mode,
+               v.hdr.src);
+
       // TODO: signal your control task to apply 'mode'
     }
   }
@@ -97,7 +96,7 @@ void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user
       ESP_LOGI("NET", "[RX] TRIGGER_ANIM -> %u (from 0x%02X)\n", animId, v.hdr.src);
 
       io_printf("Queued up show trigger remote station: %d\n", animId);
-      SendShowQueue( ShowInputQueueMsg{ ShowInputQueueCmd::TriggerPeer, static_cast<unsigned char>(animId) } );
+      SendShowQueue(ShowInputQueueMsg{ShowInputQueueCmd::TriggerPeer, static_cast<unsigned char>(animId)});
     }
   }
   break;
@@ -105,16 +104,17 @@ void onPacket(const uint8_t *data, size_t len, const IPAddress &from, void *user
   default:
     // Unknown command—safe to ignore for forward compatibility
     ESP_LOGW("NET", "[RX] Unknown cmd 0x%02X from 0x%02X, %uB payload\n",
-      v.hdr.cmd, v.hdr.src, (unsigned)v.payload_len);                  
+             v.hdr.cmd, v.hdr.src, (unsigned)v.payload_len);
     break;
   }
 }
 
 // Network ping sender
-bool send_ping() {
+bool send_ping()
+{
   // Ping packet has one byte for rssi and 2 for range.
   uint8_t ping_packet[sizeof(Proto::Header) + 3];
-  size_t len=0;
+  size_t len = 0;
 
   // Grab the latest network RSSI to report connectivity status.
   int8_t rssi = networkService->rssi();
@@ -123,14 +123,16 @@ bool send_ping() {
 
   len = Proto::buildPing(ping_packet, sizeof(ping_packet), Proto::BROADCAST,
                          settingsConfig.deviceId(), rssi, range);
-  if (len == 0) {
+  if (len == 0)
+  {
     ESP_LOGE("NET", "Failed to pack ping message!");
     return false;
-  }  
+  }
 
   ESP_LOGI("NET", "Sending ping...");
   int sent = networkService->send(ping_packet, len);
-  if (sent > 0) {
+  if (sent > 0)
+  {
     return true;
   }
 
@@ -147,24 +149,39 @@ bool send_ping() {
 void esp32c6_use_ext_ant()
 {
   pinMode(3, OUTPUT);
-  digitalWrite(3, LOW);//turn on this function
+  digitalWrite(3, LOW); // turn on this function
   delay(100);
-  pinMode(14, OUTPUT); 
-  digitalWrite(14, HIGH);//use external antenna
+  pinMode(14, OUTPUT);
+  digitalWrite(14, HIGH); // use external antenna
+}
+
+// Determine if this node is capable of detectig proximity events.
+// Return true if it can detect proximity.
+bool is_prox_detect_capable()
+{
+  if ((settingsConfig.deviceId() == 1) ||
+      (settingsConfig.deviceId() == 5) ||
+      (settingsConfig.deviceId() == 6))
+  {
+    return true;
+  }
+  return false;
 }
 
 // Bootup initialization.
-void setup() {
+void setup()
+{
   BaseType_t ok;
 
   Serial.begin(115200);
-  delay(2000);  // Give serial interface time to startup before using.
+  delay(2000); // Give serial interface time to startup before using.
 
   // One-time init: install locked vprintf + create I/O mutex so logs & prompts serialize
   io_sync_init();
 
   // Create all of the queues between tasks.
-  if (!QueueBus_Init(queueBus)) {
+  if (!QueueBus_Init(queueBus))
+  {
     io_printf("QueueBus init failed!\n");
     abort();
   }
@@ -175,13 +192,16 @@ void setup() {
   // file in the -DCORE_DEBUG_LEVEL=5 definition.
 
   ESP_LOGI(TAG_BOOT, "System startup...\n");
-  
+
   // Restore the persistent memory parameters
-  if (!settingsConfig.begin()) {
+  if (!settingsConfig.begin())
+  {
     // Failed to restore settings
     ESP_LOGE(TAG_BOOT, "Failed to restore config!");
     FAULT_SET(FAULT_CONFIG_RESTORE_FAULT);
-  } else {
+  }
+  else
+  {
     ESP_LOGI(TAG_BOOT, "Config restored.");
   }
 
@@ -196,67 +216,76 @@ void setup() {
 #endif
 
   // Create the network services manager
-  //TODO: Use the settingsConfig for multicast IP and Port!!!!!
+  // TODO: Use the settingsConfig for multicast IP and Port!!!!!
   networkService = new NetService(
       settingsConfig.ssid(),
       settingsConfig.password(),
       IPAddress(239, 255, 0, 1), /* Multicast address */
-      49400, /* Multicast port */
-      1); /* TTL */
+      49400,                     /* Multicast port */
+      1);                        /* TTL */
 
   // Map a callback for network incoming message processing.
   networkService->onPacket(onPacket);
 
   // Start the networking task on Core 0
   ok = xTaskCreatePinnedToCore(
-    NetService::task,
-    "net",
-    8192, /* Wifi needs larger stack */
-    networkService,
-    5 /*prio*/,
-    nullptr,
-    CORE_WIFI /*core*/);
-  if (ok == pdPASS) {
+      NetService::task,
+      "net",
+      8192, /* Wifi needs larger stack */
+      networkService,
+      5 /*prio*/,
+      nullptr,
+      CORE_WIFI /*core*/);
+  if (ok == pdPASS)
+  {
     ESP_LOGI(TAG_BOOT, "Network task started.");
-  } else {
+  }
+  else
+  {
     FAULT_SET(FAULT_NETWORK_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start network task!");
   }
 
   // Start the console interface task.
   if (!console_start(
-    8, /* Queue Length */
-    2, /* Priority */
-    4096, /* Stack Bytes */
-    CORE_WORK /* Core */ ))
+          8,    /* Queue Length */
+          2,    /* Priority */
+          4096, /* Stack Bytes */
+          CORE_WORK /* Core */))
   {
     FAULT_SET(FAULT_CONSOLE_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start console task!");
-  } else {
+  }
+  else
+  {
     ESP_LOGI(TAG_BOOT, "Console task started.");
   }
 
   // Start the remote command executor task.
   if (!command_exec_start(
-    2, /* Priority */
-    4096, /* Stack Bytes */
-    CORE_WORK /* Core */))
+          2,    /* Priority */
+          4096, /* Stack Bytes */
+          CORE_WORK /* Core */))
   {
     FAULT_SET(FAULT_CMD_EXEC_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start command executor task!");
-  } else {
+  }
+  else
+  {
     ESP_LOGI(TAG_BOOT, "Command executor started.");
   }
 
   // Start the audio playback task.
   if (!audio_start(
-    configMAX_PRIORITIES - 1, /* Priority */
-    4096, /* Stack Bytes */
-    CORE_WORK /* Core */ ))
+          configMAX_PRIORITIES - 1, /* Priority */
+          4096,                     /* Stack Bytes */
+          CORE_WORK /* Core */))
   {
     FAULT_SET(FAULT_AUDIO_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start audio task!");
-  } else {
+  }
+  else
+  {
     ESP_LOGI(TAG_BOOT, "Audio task started.");
 
     // Set the audio from the config.
@@ -265,79 +294,93 @@ void setup() {
 
   // Start the light animation task.
   if (!light_start(
-    configMAX_PRIORITIES - 1, /* Priority */
-    4096, /* Stack Bytes */
-    CORE_WORK /* Core */ ))
+          configMAX_PRIORITIES - 1, /* Priority */
+          4096,                     /* Stack Bytes */
+          CORE_WORK /* Core */))
   {
     FAULT_SET(FAULT_LIGHT_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start light task!");
-  } else {
+  }
+  else
+  {
     ESP_LOGI(TAG_BOOT, "Light task started.");
   }
 
   // Start the motor animation task.
   if (!motor_start(
-    configMAX_PRIORITIES - 1, /* Priority */
-    4096, /* Stack Bytes */
-    CORE_WORK /* Core */ ))
+          configMAX_PRIORITIES - 1, /* Priority */
+          4096,                     /* Stack Bytes */
+          CORE_WORK /* Core */))
   {
     FAULT_SET(FAULT_MOTOR_TASK_FAULT);
     ESP_LOGE(TAG_BOOT, "Failed to start motor task!");
-  } else {
+  }
+  else
+  {
     ESP_LOGI(TAG_BOOT, "Motor task started.");
   }
 
-  // Start the proximity detection task.
-  if (!prox_detect_start(
-    configMAX_PRIORITIES - 1, /* Priority */
-    4096, /* Stack Bytes */
-    CORE_WORK /* Core */ ))
+  if (is_prox_detect_capable())
   {
-    FAULT_SET(FAULT_PROX_DETECT_TASK_FAULT);
-    ESP_LOGE(TAG_BOOT, "Failed to start proximity detection task!");
-  } else {
-    ESP_LOGI(TAG_BOOT, "Proximity detection task started.");
+    // Start the proximity detection task.
+    if (!prox_detect_start(
+            configMAX_PRIORITIES - 1, /* Priority */
+            4096,                     /* Stack Bytes */
+            CORE_WORK /* Core */))
+    {
+      FAULT_SET(FAULT_PROX_DETECT_TASK_FAULT);
+      ESP_LOGE(TAG_BOOT, "Failed to start proximity detection task!");
+    }
+    else
+    {
+      ESP_LOGI(TAG_BOOT, "Proximity detection task started.");
+    }
   }
 
-  // Start the master show task.
-  if (!show_start(
-    configMAX_PRIORITIES - 1, /* Priority */
-    8192, /* Stack Bytes */
-    CORE_WORK /* Core */ ))
+    // Start the master show task.
+    if (!show_start(
+            configMAX_PRIORITIES - 1, /* Priority */
+            8192,                     /* Stack Bytes */
+            CORE_WORK /* Core */))
+    {
+      FAULT_SET(FAULT_SHOW_TASK_FAULT);
+      ESP_LOGE(TAG_BOOT, "Failed to start show task!");
+    }
+    else
+    {
+      ESP_LOGI(TAG_BOOT, "Show task started.");
+    }
+
+    // Start the Over-The-Air updater task.
+    if (!ota_start(
+            configMAX_PRIORITIES - 1, /* Priority */
+            8192,                     /* Stack Bytes */
+            CORE_WORK /* Core */))
+    {
+      FAULT_SET(FAULT_OTA_TASK_FAULT);
+      ESP_LOGE(TAG_BOOT, "Failed to start the OTA task!");
+    }
+    else
+    {
+      ESP_LOGI(TAG_BOOT, "OTA task started.");
+    }
+  }
+
+  // Background task
+  void loop()
   {
-    FAULT_SET(FAULT_SHOW_TASK_FAULT);
-    ESP_LOGE(TAG_BOOT, "Failed to start show task!");
-  } else {
-    ESP_LOGI(TAG_BOOT, "Show task started.");
+
+    if (time_since_last_ping_msec >= PING_SEND_PERIOD)
+    {
+      time_since_last_ping_msec = 0;
+      send_ping();
+    }
+
+    if (time_since_last_blink_msec >= CPU_LED_BLINK_PERIOD)
+    {
+      time_since_last_blink_msec = 0;
+#ifdef LED_BUILTIN
+      digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+#endif
+    }
   }
-
-  // Start the Over-The-Air updater task.
-  if (!ota_start(
-    configMAX_PRIORITIES - 1, /* Priority */
-    8192, /* Stack Bytes */
-    CORE_WORK /* Core */ ))
-  {
-    FAULT_SET(FAULT_OTA_TASK_FAULT);
-    ESP_LOGE(TAG_BOOT, "Failed to start the OTA task!");
-  } else {
-    ESP_LOGI(TAG_BOOT, "OTA task started.");
-  }
-}
-
-// Background task
-void loop() {
-
-  if (time_since_last_ping_msec >= PING_SEND_PERIOD){
-    time_since_last_ping_msec = 0;
-    send_ping();
-  }
-
-  if (time_since_last_blink_msec >= CPU_LED_BLINK_PERIOD ) {
-    time_since_last_blink_msec = 0;
-#ifdef LED_BUILTIN    
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-#endif    
-  }
-
-}
-

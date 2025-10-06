@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include "DFRobotDFPlayerMini.h"
-// #include <DFPlayerMini_Fast.h>
 
 #include "Audio.h"
 #include "CommandQueues.h"
@@ -140,8 +139,25 @@ void stop_audio_player()
 // Play a file in the specified folder.
 void play_audio_file(uint8_t folder, uint8_t file)
 {
+  // Special audio file volume override
+  switch(file)
+  {
+    case static_cast<int>(AudioAnim::FIRE):
+    set_volume(18);
+    break;
+
+    case static_cast<int>(AudioAnim::THERAMIN): 
+    set_volume(15);
+    break;
+
+    case static_cast<int>(AudioAnim::THUNDER):
+    set_volume(18);
+    break;
+  }
+
   myDFPlayer.playFolder(folder, file);
   io_printf("Playing audio folder: %d, file: %d\n", folder, file);
+
 }
 
 // Set the volume for playback.

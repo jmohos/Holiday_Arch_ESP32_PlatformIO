@@ -15,8 +15,8 @@
 
 // Animation Profiles
 const AnimationStep idleShow[] = {
-    { 60000, LightAnim::PORTAL_HALLOWEEN, AudioAnim::SILENCE, MotorAnim::HOME},
-    { 60000, LightAnim::FLAMES, AudioAnim::FIRE, MotorAnim::HOME },
+    { 22000, LightAnim::PORTAL_HALLOWEEN, AudioAnim::THERAMIN, MotorAnim::HOME},
+    { 30000, LightAnim::FLAMES, AudioAnim::FIRE, MotorAnim::HOME },
 };
 const uint8_t IDLE_SHOW_LENGTH = sizeof(idleShow) / sizeof(AnimationStep);
 
