@@ -1,3 +1,9 @@
+//
+// Proximity Detector
+//
+// If wiring to a TOFSense-F2 Mini Lidar, add -DPROX_TYPE_LIDAR to the platformio.ini build flags.
+// If wiring to a PIR AM312 sensor, add -DPROX_TYPE_PIR to the platformio.ini build flags.
+//
 #include <Arduino.h>
 
 #include "CommandQueues.h"
@@ -6,6 +12,25 @@
 #include "Logging.h"
 #include "Pins.h"
 #include "ProxDetect.h"
+
+// Update rate for distance readings.
+static constexpr uint16_t DETECTION_FPS = 25;
+static constexpr float MAX_RANGE = 32767.0;
+static constexpr uint16_t DETECT_MIN_CLOSE_READINGS = 2; /* Units of frames, see DETECTION_FPS */
+static constexpr uint16_t DETECT_MIN_FAR_READINGS = 10;  /* " */
+static constexpr uint16_t RANGE_CONSEQ_COUNT_MAX = 100;
+
+
+enum class DetectState : uint8_t
+{
+  UNKNOWN = 0,
+  FAR = 1,
+  CLOSE = 2
+};
+DetectState detectState = DetectState::UNKNOWN;
+
+
+#if defined PROX_TYPE_LIDAR
 #include <Wire.h> // I2C drivers
 
 // I2C Device address for the sensor.
@@ -13,9 +38,8 @@
 // This allows multiple sensors to be wired to the same I2C bus.
 #define deviceaddress 0x08
 
-// Update rate for distance readings.
-static constexpr uint16_t TOF_DETECTION_FPS = 25;
-static constexpr float MAX_RANGE = 32767.0;
+
+
 
 bool sensor_online = false;
 float sensor_distance = MAX_RANGE;
@@ -26,17 +50,8 @@ float range_mm = MAX_RANGE;
 // to being below min for y readings.
 static constexpr uint16_t DETECT_HYST_MIN_MM = 750;      /* Must be closer than this for "close". */
 static constexpr uint16_t DETECT_HYST_MAX_MM = 1000;     /* Must be farther than this for "far". */
-static constexpr uint16_t DETECT_MIN_CLOSE_READINGS = 2; /* Units of frames, see TOF_DETECTION_FPS */
-static constexpr uint16_t DETECT_MIN_FAR_READINGS = 10;  /* " */
-static constexpr uint16_t RANGE_CONSEQ_COUNT_MAX = 100;
 
-enum class DetectState : uint8_t
-{
-  UNKNOWN = 0,
-  FAR = 1,
-  CLOSE = 2
-};
-DetectState detectState = DetectState::UNKNOWN;
+
 
 //
 // Example code sourced from: https://wiki.dfrobot.com/SKU_SEN0646_TOF_laser_ranging_sensor_7.8m#Arduino%20Sample%20Code
@@ -113,7 +128,7 @@ static void ProxDetectTask(void *)
   }
 
   // Framerate control
-  const TickType_t frameTicks = pdMS_TO_TICKS(1000UL / TOF_DETECTION_FPS);
+  const TickType_t frameTicks = pdMS_TO_TICKS(1000UL / DETECTION_FPS);
   TickType_t lastWake = xTaskGetTickCount();
 
   for (;;)
@@ -200,6 +215,121 @@ static void ProxDetectTask(void *)
     vTaskDelayUntil(&lastWake, frameTicks);
   }
 }
+
+
+
+#endif
+
+
+#if defined PROX_TYPE_PIR
+
+void init_pir_sensor() 
+{
+  // Use the same connector for the PIR sensor as the I2C TOF sensor.
+  pinMode(I2C_SDA_PIN, INPUT);
+}
+
+bool is_pir_detected()
+{
+  if (digitalRead(I2C_SDA_PIN))
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+// Return the last processed reading.
+float prox_range()
+{
+  // Creating a pseudo reading using the PIR switch input.
+  if (is_pir_detected())
+  {
+    return 10.0;
+  }
+  else{
+    return MAX_RANGE;
+  }
+}
+
+// Main proximity detection task.
+static void ProxDetectTask(void *)
+{
+  uint16_t range_close_count = 0;
+  uint16_t range_far_count = 0;
+  bool detected = false;
+
+  io_printf("[Prox] Task starting in PIR mode...\n");
+  init_pir_sensor();
+
+  // Framerate control
+  const TickType_t frameTicks = pdMS_TO_TICKS(1000UL / DETECTION_FPS);
+  TickType_t lastWake = xTaskGetTickCount();
+
+  for (;;)
+  {
+  
+      detected = is_pir_detected();
+      //io_printf("PIR detected: %d\n", detected);
+
+      // Filter range reading to one of three zones, far, near or in between.
+      if (detected)
+      {
+        if (range_close_count < RANGE_CONSEQ_COUNT_MAX)
+        {
+          range_close_count++;
+        }
+        range_far_count = 0;
+      }
+      else
+      {
+        range_close_count = 0;
+        if (range_far_count < RANGE_CONSEQ_COUNT_MAX)
+        {
+          range_far_count++;
+        }
+      }
+
+      // Detect changes in detected zones.
+      switch (detectState)
+      {
+      case DetectState::UNKNOWN:
+        // Must start with clear detection area on start.
+        if (range_far_count >= DETECT_MIN_FAR_READINGS)
+        {
+          detectState = DetectState::FAR;
+        }
+        break;
+
+      case DetectState::FAR:
+        if (range_close_count >= DETECT_MIN_CLOSE_READINGS)
+        {
+          // Far to close detect event occurred!
+          detectState = DetectState::CLOSE;
+
+          // Queue up an event indicating a local station proximity trigger.
+          SendShowQueue(ShowInputQueueMsg{ShowInputQueueCmd::TriggerLocal, 0});
+        }
+        break;
+
+      case DetectState::CLOSE:
+        if (range_far_count >= DETECT_MIN_FAR_READINGS)
+        {
+          // Close to far detect event occurred!
+          detectState = DetectState::FAR;
+        }
+
+        break;
+      }
+
+    // Frame pacing
+    vTaskDelayUntil(&lastWake, frameTicks);
+  }
+}
+#endif
+
 
 bool prox_detect_start(UBaseType_t priority, uint32_t stack_bytes, BaseType_t core)
 {

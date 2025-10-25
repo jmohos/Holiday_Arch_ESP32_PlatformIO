@@ -143,15 +143,15 @@ void play_audio_file(uint8_t folder, uint8_t file)
   switch(file)
   {
     case static_cast<int>(AudioAnim::FIRE):
-    set_volume(18);
+    set_volume(20);
     break;
 
     case static_cast<int>(AudioAnim::THERAMIN): 
-    set_volume(15);
+    set_volume(25);
     break;
 
     case static_cast<int>(AudioAnim::THUNDER):
-    set_volume(18);
+    set_volume(20);
     break;
   }
 

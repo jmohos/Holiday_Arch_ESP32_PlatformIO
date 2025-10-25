@@ -15,7 +15,8 @@ typedef enum {
   FAULT_TOF_SENSOR_INIT_FAIL = 9,
   FAULT_MP3_PLAYER_INIT_FAIL = 10,
   FAULT_OTA_TASK_FAULT = 11,
-  FAULT_MAX_INDEX = 12
+  FAULT_MOTOR_INIT_FAULT = 12,
+  FAULT_MAX_INDEX = 13
 } SYSTEM_FAULT_T;
 
 // Forward reference to master system fault bits in master .ini file.

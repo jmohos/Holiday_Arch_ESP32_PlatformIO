@@ -1,9 +1,21 @@
 #include <Arduino.h>
 #include "CommandQueues.h"
+#include "Faults.h"
 #include "IoSync.h"
 #include "Logging.h"
 #include "Motor.h"
 #include "Pins.h"
+
+//
+// There are two available motor pins which can be PWM servo or discrete controlled.
+// For this application we will make motor servo #1 a PWM output and make motor
+// servo #2 a discrete ON/OFF output.
+// 
+// SERVO_1_PIN = True PWM servo output
+// SERVO_2_PIN = Discrete output
+//
+#define NUM_SERVOS 1
+
 
 #if defined(ESP32C3_BOARD)
 // Servo management library.
@@ -18,7 +30,7 @@ Servo myservo = Servo(); /* Supports 0-180 degrees */
 // Servo management header class.
 #include "SmoothServos.h"
 
-SmoothServos servos(2);
+SmoothServos servos(NUM_SERVOS);
 #endif
 
 static bool g_playing = false;
@@ -45,9 +57,12 @@ static constexpr float hammer_positions[NUM_HAMMER_STEPS] = {180.0, 0.0, 120.0, 
 static constexpr uint32_t hammer_delays[NUM_HAMMER_STEPS] = {500, 500, 500, 500};
 
 
-void config_servos() {
+//
+// Setup any motor outputs that are true PWM servos.
+//
+bool config_servos() {
 #if defined(ESP32C6_BOARD)
-  ServoConfig cfgs[2];
+  ServoConfig cfgs[NUM_SERVOS];
   cfgs[0] = {
     .pin = SERVO_1_PIN,
     .minUs = 600,
@@ -57,39 +72,53 @@ void config_servos() {
     .maxAccelDegPerSec2 = 400, // optional accel shaping
     .deadbandDeg = 0.5f
   };
-  cfgs[1] = {
-    .pin = SERVO_2_PIN,
-    .minUs = 600,
-    .maxUs = 2400,
-    .invert = false,
-    .maxDegPerSec = 90,
-    .maxAccelDegPerSec2 = 300,
-    .deadbandDeg = 0.5f
-  };
-
-  if (!servos.begin(cfgs, 2, /*periodHz=*/50)) {
+  // Replaced with discrete output!
+  // cfgs[1] = {
+  //   .pin = SERVO_2_PIN,
+  //   .minUs = 600,
+  //   .maxUs = 2400,
+  //   .invert = false,
+  //   .maxDegPerSec = 90,
+  //   .maxAccelDegPerSec2 = 300,
+  //   .deadbandDeg = 0.5f
+  // };
+  if (!servos.begin(cfgs, NUM_SERVOS, /*periodHz=*/50)) {
     Serial.println("Servo init failed (pin or LEDC channel issue).");
-    while (true) delay(1000);
+    FAULT_SET(FAULT_MOTOR_INIT_FAULT);
+    return false;
   }
 
   // Start positions
   servos.snapTo(0, 90);
-  servos.snapTo(1, 90);
-
+  //servos.snapTo(1, 90); // Replaced with discrete output!
 #endif
+return true;
+}
+
+//
+// Setup any motor outputs that are disctete outputs.
+//
+bool config_discrete_motors() {
+  pinMode(SERVO_2_PIN, OUTPUT);
+  digitalWrite(SERVO_2_PIN, LOW); // Default is low/off.
+  return true;
 }
 
 
 // Force the motors to their idle position immediately.
 void motor_idle()
 {
+  // Update the servo based motor outputs.
 #if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, HOME_ANGLE);
-  myservo.write(SERVO_1_PIN, HOME_ANGLE);
+  //myservo.write(SERVO_1_PIN, HOME_ANGLE);  // Replaced with discrete output!
 #elif defined(ESP32C6_BOARD)
   servos.snapTo(0, HOME_ANGLE);
-  servos.snapTo(1, HOME_ANGLE);
+  //servos.snapTo(1, HOME_ANGLE);  // Replaced with discrete output!
 #endif
+
+  // Update the discrete motor outputs.
+  digitalWrite(SERVO_2_PIN, LOW); // Turn off motor.
 }
 
 // Motor animation routine to home
@@ -99,6 +128,7 @@ static void anim_motor_home(bool reset)
   static double speed = 90; /* deg/sec */
   static double ke = 0.0;   /* 0 = linear ramping/easing */
 
+  // Update the servo based motor outputs.
   if (reset)
   {
     t0 = now_ms();
@@ -110,11 +140,15 @@ static void anim_motor_home(bool reset)
   // TODO: Ramp positions to home position
 #if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, HOME_ANGLE, speed, ke);
-  myservo.write(SERVO_2_PIN, HOME_ANGLE, speed, ke);
+  //myservo.write(SERVO_2_PIN, HOME_ANGLE, speed, ke);  // Replaced with discrete output!
 #elif defined(ESP32C6_BOARD)
   servos.snapTo(0, HOME_ANGLE);
-  servos.snapTo(1, HOME_ANGLE);  
+  //servos.snapTo(1, HOME_ANGLE);  // Replaced with discrete output!
 #endif
+
+  // Update the discrete motor outputs.
+  digitalWrite(SERVO_2_PIN, LOW); // Turn off motor.
+
 }
 
 // Motor animation routine to jiggle
@@ -127,6 +161,7 @@ static void anim_motor_jiggle(bool reset)
   static double speed = 180; /* deg/sec */
   static double ke = 0.1;    /* Slight damping */
 
+  // Update the servo based motor outputs.
   if (reset)
   {
     index = 0;
@@ -142,10 +177,10 @@ static void anim_motor_jiggle(bool reset)
   // Update the servos often to support the ramping in between changes.
 #if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, jiggle_positions[index], speed, ke);
-  myservo.write(SERVO_2_PIN, jiggle_positions[index], speed, ke);
+  //myservo.write(SERVO_2_PIN, jiggle_positions[index], speed, ke);  // Replaced with discrete output!
 #elif defined(ESP32C6_BOARD)
   servos.snapTo(0, jiggle_positions[index]);
-  servos.snapTo(1, jiggle_positions[index]);    
+  //servos.snapTo(1, jiggle_positions[index]);  // Replaced with discrete output!
 #endif
 
   if (!in_delay)
@@ -162,6 +197,10 @@ static void anim_motor_jiggle(bool reset)
       in_delay = false;
     }
   }
+
+  // Update the discrete motor outputs.
+  digitalWrite(SERVO_2_PIN, HIGH); // Turn on motor.
+
 }
 
 // Motor animation routine to hammer
@@ -174,7 +213,8 @@ static void anim_motor_hammer(bool reset)
   static double speed = 180; /* deg/sec */
   static double ke = 0.0;    /* No damping */
 
-  if (reset)
+ // Update the servo based motor outputs.
+ if (reset)
   {
     index = 0;
     last_update_time = 0;
@@ -189,10 +229,10 @@ static void anim_motor_hammer(bool reset)
   // Update the servos often to support the ramping in between changes.
 #if defined(ESP32C3_BOARD)  
   myservo.write(SERVO_1_PIN, hammer_positions[index], speed, ke);
-  myservo.write(SERVO_2_PIN, hammer_positions[index], speed, ke);
+  //myservo.write(SERVO_2_PIN, hammer_positions[index], speed, ke); // Replaced with discrete output!
 #elif defined(ESP32C6_BOARD)
   servos.snapTo(0, hammer_positions[index]);
-  servos.snapTo(1, hammer_positions[index]);   
+  //servos.snapTo(1, hammer_positions[index]);   // Replaced with discrete output!
 #endif
 
   if (!in_delay)
@@ -209,6 +249,10 @@ static void anim_motor_hammer(bool reset)
       in_delay = false;
     }
   }
+
+  // Update the discrete motor outputs.
+  digitalWrite(SERVO_2_PIN, HIGH); // Turn on motor.
+
 }
 
 // Dispatch table for all motor animation routines.
@@ -220,8 +264,15 @@ static void MotorTask(void *)
   MotorCmdQueueMsg msg{};
   const TickType_t frameTicks = pdMS_TO_TICKS(1000UL / g_targetFps);
   TickType_t lastWake = xTaskGetTickCount();
+  bool servo_1_usable = true;
 
-  config_servos();
+  if (!config_servos())
+  {
+    servo_1_usable = false;
+  }
+
+  config_discrete_motors();
+
 
   // Setup the timer and PWM outputs for hobby servo compliant patterns.
   motor_idle();
@@ -264,10 +315,10 @@ static void MotorTask(void *)
 
 #if defined(ESP32C3_BOARD)  
         myservo.write(SERVO_1_PIN, HOME_ANGLE);
-        myservo.write(SERVO_1_PIN, HOME_ANGLE);
+        //myservo.write(SERVO_1_PIN, HOME_ANGLE);  // Replaced with discrete output!
 #elif defined(ESP32C6_BOARD)
         servos.snapTo(0, HOME_ANGLE);
-        servos.snapTo(1, HOME_ANGLE);           
+        //servos.snapTo(1, HOME_ANGLE);  // Replaced with discrete output!
 #endif
         break;
       }

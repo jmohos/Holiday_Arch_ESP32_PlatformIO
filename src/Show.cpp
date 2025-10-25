@@ -2,6 +2,7 @@
 #include "AnimationStep.h"
 #include "Audio.h"
 #include "CommandQueues.h"
+#include "elapsedMillis.h"
 #include "Light.h"
 #include "main.h"
 #include "Motor.h"
@@ -21,12 +22,12 @@ const AnimationStep idleShow[] = {
 const uint8_t IDLE_SHOW_LENGTH = sizeof(idleShow) / sizeof(AnimationStep);
 
 const AnimationStep localShow[] = {
-    { 4000, LightAnim::LIGHTNING,   AudioAnim::THUNDER,  MotorAnim::JIGGLE },
+    { 6000, LightAnim::LIGHTNING,   AudioAnim::THUNDER,  MotorAnim::JIGGLE },
 };
 const uint8_t LOCAL_SHOW_LENGTH = sizeof(localShow) / sizeof(AnimationStep);
 
 const AnimationStep remoteShow[] = {
-    { 4000, LightAnim::LIGHTNING,    AudioAnim::THUNDER, MotorAnim::HAMMER },
+    { 6000, LightAnim::LIGHTNING,    AudioAnim::THUNDER, MotorAnim::HAMMER },
 //    { 1000, LightAnim::BOUNCE,    AudioAnim::FIVE,    MotorAnim::HAMMER },
 //    { 1000, LightAnim::BOUNCE,    AudioAnim::FOUR,    MotorAnim::HAMMER },
 //    { 1000, LightAnim::BOUNCE,    AudioAnim::THREE,   MotorAnim::HAMMER },
@@ -37,6 +38,9 @@ const uint8_t REMOTE_SHOW_LENGTH = sizeof(remoteShow) / sizeof(AnimationStep);
 #define START_IDLE_ANIM() do {currentShow = idleShow; currentShowLength = IDLE_SHOW_LENGTH;} while(0)
 #define START_LOCAL_ANIM() do {currentShow = localShow; currentShowLength = LOCAL_SHOW_LENGTH;} while(0)
 #define START_REMOTE_ANIM() do {currentShow = remoteShow; currentShowLength = REMOTE_SHOW_LENGTH;} while(0)
+
+// Minimum time between local triggers.
+#define MIN_LOCAL_TRIGGER_TURNAROUND_MSEC 10 * 1000
 
 // 
 bool send_trigger(uint8_t animId) {
@@ -68,6 +72,7 @@ static void ShowTask(void*) {
   const AnimationStep* currentShow = nullptr;
   uint8_t currentShowLength = 0;
   ShowInputQueueMsg in_msg{};
+  elapsedMillis time_since_last_local_trigger = 0; 
 
   for (;;)
   {
@@ -77,12 +82,22 @@ static void ShowTask(void*) {
 
       switch(in_msg.cmd) {
         case ShowInputQueueCmd::TriggerLocal:
-          START_LOCAL_ANIM();
 
-          // Send out to peers a remote trigger messsage
-          send_trigger(1);
+          // Check if its been too soon since the last trigger to prevent
+          // annoying back to back triggering.
+          if (time_since_last_local_trigger >= MIN_LOCAL_TRIGGER_TURNAROUND_MSEC) {
+            time_since_last_local_trigger = 0;
 
-          showState = SHOWSTATE_START_TABLE;
+            START_LOCAL_ANIM();
+
+            // Send out to peers a remote trigger messsage
+            send_trigger(1);
+
+            showState = SHOWSTATE_START_TABLE;
+          } else {
+            io_printf("Rejecting trigger, too soon!\n");
+          }
+
         break;
 
         case ShowInputQueueCmd::TriggerPeer:
